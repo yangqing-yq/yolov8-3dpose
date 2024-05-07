@@ -1,0 +1,2 @@
+scp -r xuhui@we-senhui-tower.sh.intel.com:/data/datasets/UBody /home/ilc/wsd_data/DATA/
+scp -r xuhui@we-senhui-tower.sh.intel.com:/3dat/full-body/datasets/AGORA /home/ilc/wsd_data/DATA/
