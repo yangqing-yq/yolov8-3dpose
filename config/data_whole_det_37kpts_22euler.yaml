@@ -1,0 +1,26 @@
+# Ultralytics YOLO 🚀, AGPL-3.0 license
+# COCO8-pose dataset (first 8 images from COCO train2017) by Ultralytics
+# Example usage: yolo train data=coco8-pose.yaml
+
+
+# Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
+# path: /datahdd/mmzhu/expt/new_train/datasets/coco_ubody  # dataset root dir
+path: /data/coco_human/  # dataset root dir
+train: images/train  # train images (relative to 'path') 4 images
+val: images/val  # val images (relative to 'path') 4 images
+test:  # test images (optional)
+
+# Keypoints
+kpt_shape: [37, 3]  # number of keypoints, number of dims (2 for x,y or 3 for x,y,visible)
+kpt_3dshape: [22, 3]  # number of joint 3d euler, number of dims (yaw, pitch, roll)
+flip_idx: [0, 2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15,
+          27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
+          17, 18, 19, 20, 21, 22, 23, 24, 25, 26]
+flip_3didx: [0, 2, 1, 3, 5, 4 , 6, 8, 7, 9, 11, 10, 12, 14, 13, 15, 17, 16, 19, 18, 21, 20]
+
+# Classes
+names:
+  0: person
+  1: left_hand
+  2: right_hand
+  3: head
