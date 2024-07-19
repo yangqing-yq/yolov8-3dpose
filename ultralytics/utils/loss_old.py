@@ -12,7 +12,6 @@ from .metrics import bbox_iou, probiou
 from .tal import bbox2dist
 
 
-
 class VarifocalLoss(nn.Module):
     """
     Varifocal loss by Zhang et al.
@@ -136,6 +135,28 @@ class KeypointLoss(nn.Module):
         e = d / (2 * self.sigmas) ** 2 / (area + 1e-9) / 2  # from cocoeval
         return (kpt_loss_factor.view(-1, 1) * ((1 - torch.exp(-e)) * kpt_mask)).mean()
 
+
+class Keypoint3DLoss(nn.Module):
+    """Criterion class for computing training losses for 3D Euler angles without normalization."""
+
+    def __init__(self, sigmas_3d) -> None:
+        """Initialize the Keypoint3DLoss class."""
+        super().__init__()
+        self.sigmas_3d = sigmas_3d
+
+    def forward(self, pred_3dkpts, gt_3dkpts, kpt_3dmask):
+        """Calculates Euler angle loss for predicted and actual Euler angles"""
+        # pred_3dkpts = pred_3dkpts % 360
+        # pred_3dkpts = torch.where(pred_3dkpts > 180, pred_3dkpts - 360, pred_3dkpts)
+
+        d_3d = torch.abs(pred_3dkpts - gt_3dkpts)
+        # d_3d = torch.min(d_3d, 360 - d_3d)
+
+        d_3d_sum = (d_3d ** 2).sum(dim = -1)
+
+        kpt_3dloss_factor = kpt_3dmask.shape[1] / (torch.sum(kpt_3dmask != 0, dim=1) + 1e-9)
+        e = d_3d_sum / (2 * self.sigmas_3d) ** 2 / 2
+        return (kpt_3dloss_factor.view(-1, 1) * ((1 - torch.exp(-e)) * kpt_3dmask)).mean()
 
 
 class v8DetectionLoss:
@@ -399,58 +420,6 @@ class v8SegmentationLoss(v8DetectionLoss):
         return loss / fg_mask.sum()
 
 
-class Keypoint3DLoss(nn.Module):
-    """Criterion class for computing training losses for 3D Euler angles without normalization."""
-
-    def __init__(self, sigmas_3d) -> None:
-        """Initialize the Keypoint3DLoss class."""
-        super().__init__()
-        self.sigmas_3d = sigmas_3d
-
-    def forward(self, pred_3dkpts, gt_3dkpts, kpt_3dmask):
-        """Calculates Euler angle loss for predicted and actual Euler angles"""
-        # pred_3dkpts = pred_3dkpts % 360
-        # pred_3dkpts = torch.where(pred_3dkpts > 180, pred_3dkpts - 360, pred_3dkpts)
-
-
-        # print("class Keypoint3DLoss pred_3dkpts:",pred_3dkpts.shape) #torch.Size([9649, 22, 3])
-        # print("class Keypoint3DLoss gt_3dkpts:",gt_3dkpts.shape) #torch.Size([9649, 22, 3])
-
-        d_3d = torch.abs(pred_3dkpts - gt_3dkpts)
-        # d_3d = torch.min(d_3d, 360 - d_3d)
-
-        d_3d_sum = (d_3d ** 2).sum(dim = -1)
-
-        kpt_3dloss_factor = kpt_3dmask.shape[1] / (torch.sum(kpt_3dmask != 0, dim=1) + 1e-9)
-        e = d_3d_sum / (2 * self.sigmas_3d) ** 2 / 2
-        return (kpt_3dloss_factor.view(-1, 1) * ((1 - torch.exp(-e)) * kpt_3dmask)).mean()
-    
-class Joint3DLoss(nn.Module):
-    """Criterion class for computing training losses for 3D Euler angles without normalization."""
-
-    def __init__(self, sigmas_3d) -> None:
-        """Initialize the Keypoint3DLoss class."""
-        super().__init__()
-        self.sigmas_3d = sigmas_3d
-
-    def forward(self, pred_3dkpts, gt_3dkpts, kpt_3dmask):
-        """Calculates Euler angle loss for predicted and actual Euler angles"""
-        # pred_3dkpts = pred_3dkpts % 360
-        # pred_3dkpts = torch.where(pred_3dkpts > 180, pred_3dkpts - 360, pred_3dkpts)
-
-
-        print("class Keypoint3DLoss pred_3dkpts:",pred_3dkpts.shape)
-        print("class Keypoint3DLoss gt_3dkpts:",gt_3dkpts.shape)
-
-        d_3d = torch.abs(pred_3dkpts - gt_3dkpts)
-        # d_3d = torch.min(d_3d, 360 - d_3d)
-
-        d_3d_sum = (d_3d ** 2).sum(dim = -1)
-
-        kpt_3dloss_factor = kpt_3dmask.shape[1] / (torch.sum(kpt_3dmask != 0, dim=1) + 1e-9)
-        e = d_3d_sum / (2 * self.sigmas_3d) ** 2 / 2
-        return (kpt_3dloss_factor.view(-1, 1) * ((1 - torch.exp(-e)) * kpt_3dmask)).mean()
-
 class v8PoseLoss(v8DetectionLoss):
     """Criterion class for computing training losses."""
 
@@ -468,11 +437,10 @@ class v8PoseLoss(v8DetectionLoss):
         n3dkpt = self.kpt_3dshape[0]  # number of keypoints
         sigmas_3d = torch.ones(n3dkpt , device=self.device) / n3dkpt
         self.keypoint_3dloss = Keypoint3DLoss(sigmas_3d=sigmas_3d)
-        self.joint_3dloss = Joint3DLoss(sigmas_3d=sigmas_3d)
 
     def __call__(self, preds, batch):
         """Calculate the total loss and detach it."""
-        loss = torch.zeros(7, device=self.device)  # box, cls, dfl, kpt_location, kpt_visibility, 3d_joints
+        loss = torch.zeros(6, device=self.device)  # box, cls, dfl, kpt_location, kpt_visibility, 3d_joints
         feats, pred_kpts, pred_3dkpts = preds if isinstance(preds[0], list) else preds[1]
         pred_distri, pred_scores = torch.cat([xi.view(feats[0].shape[0], self.no, -1) for xi in feats], 2).split(
             (self.reg_max * 4, self.nc), 1)
@@ -497,12 +465,8 @@ class v8PoseLoss(v8DetectionLoss):
 
         # Pboxes
         pred_bboxes = self.bbox_decode(anchor_points, pred_distri)  # xyxy, (b, h*w, 4)
-
         pred_kpts = self.kpts_decode(anchor_points, pred_kpts.view(batch_size, -1, *self.kpt_shape))  # (b, h*w, 17, 3)
-        # print("pred_kpts:",pred_kpts.shape) #
-
         pred_3dkpts = pred_3dkpts.view(batch_size, -1, *self.kpt_3dshape)  # (b, h*w, 22, 3)
-        # print("pred_3dkpts:",pred_3dkpts.shape) #torch.Size([128, 8400, 22, 3])
 
         _, target_bboxes, target_scores, fg_mask, target_gt_idx = self.assigner(
             pred_scores.detach().sigmoid(), (pred_bboxes.detach() * stride_tensor).type(gt_bboxes.dtype),
@@ -516,7 +480,6 @@ class v8PoseLoss(v8DetectionLoss):
 
         # Bbox loss
         if fg_mask.sum():
-            # print("fg_mask.sum():",fg_mask.sum()) #fg_mask.sum(): tensor(9308, device='cuda:0') dynamic value
             target_bboxes /= stride_tensor
             loss[0], loss[4] = self.bbox_loss(pred_distri, pred_bboxes, anchor_points, target_bboxes, target_scores,
                                               target_scores_sum, fg_mask)
@@ -527,29 +490,17 @@ class v8PoseLoss(v8DetectionLoss):
             loss[1], loss[2] = self.calculate_keypoints_loss(fg_mask, target_gt_idx, keypoints, batch_idx,
                                                              stride_tensor, target_bboxes, pred_kpts)
             keypoints_3d = batch['keypoints_3d'].to(self.device).float().clone()
-            # print("keypoints_3d:",keypoints_3d.shape)
-            # print("target_gt_idx:",target_gt_idx.shape)
-            # print("batch_idx:",batch_idx.shape)
-            # print("pred_3dkpts:",pred_3dkpts.shape)
-            loss[5],loss[6] = self.calculate_3dkeypoints_loss(fg_mask, target_gt_idx, keypoints_3d, batch_idx, pred_3dkpts)
+            print("keypoints_3d:",keypoints_3d.shape)
+            print("pred_3dkpts:",pred_3dkpts.shape)
+            loss[5] = self.calculate_3dkeypoints_loss(fg_mask, target_gt_idx, keypoints_3d, batch_idx, pred_3dkpts)
 
         loss[0] *= self.hyp.box  # box gain
         loss[1] *= self.hyp.pose  # pose gain
         loss[2] *= self.hyp.kobj  # kobj gain
         loss[3] *= self.hyp.cls  # cls gain
         loss[4] *= self.hyp.dfl  # dfl gain
-        # print("self.hyp:",self.hyp)
-        # loss[5] *= 15  # 3d joint loss gain
-        loss[5] *= 15  # 3d pose loss gain (22*3)
-        loss[6] *= 15  # 3d shape loss gain (1*10)
-        loss[7] *= 15  # 3d joint loss gain input: pose + shape -> smplx_layer -> (25*3) [0,0,0....]
+        loss[5] *= 15  # 3d joint loss gain
         # loss[5] *= self.hyp.euler  # 3d joint loss gain
-
-        #box=7.5
-        #cls=0.5
-        #dfl=1.5
-        #pose=12.0
-        #kobj=1.0
 
         return loss.sum() * batch_size, loss.detach()  # loss(box, cls, dfl)
 
@@ -630,10 +581,6 @@ class v8PoseLoss(v8DetectionLoss):
     def calculate_3dkeypoints_loss(self, masks, target_gt_idx, keypoints_3d, batch_idx, pred_3dkpts):
         batch_idx = batch_idx.flatten()
         batch_size = len(masks)
-        # print("masks:",masks.shape) #torch.Size([128, 8400])
-        # print("batch_idx:",batch_idx.shape) #tensor([  0.,   0.,   0.,  ..., 127., 127., 127.])  torch.Size([1162]) dynamic value
-        # print("batch_size:",batch_size) #128
- 
 
         # Find the maximum number of 3d angles in a single image
         max_3dkpts = torch.unique(batch_idx, return_counts=True)[1].max()
@@ -659,15 +606,12 @@ class v8PoseLoss(v8DetectionLoss):
         if masks.any():
             gt_3dkpt = selected_3dkeypoints[masks]
             pred_3dkpt = pred_3dkpts[masks]
-            # print("pred_3dkpt:",pred_3dkpt.shape)
-            # print("masks:",masks) #torch.Size([128, 8400]) True/False grid
+            print("pred_3dkpt:",pred_3dkpt.shape)
+            print("masks:",masks.shape)
             kpt_3dmask = torch.any(gt_3dkpt != 0, dim=-1) if gt_3dkpt.shape[-1] == 3 else torch.full_like(gt_3dkpt[..., 0], True)
-
-
             kpts_3dloss = self.keypoint_3dloss(pred_3dkpt, gt_3dkpt, kpt_3dmask)  # 3d joint loss
-            jots_3dloss = self.joint_3dloss(pred_3dkpt, gt_3dkpt, kpt_3dmask)  # 3d joint loss
 
-        return kpts_3dloss, jots_3dloss
+        return kpts_3dloss
 
 
 class v8ClassificationLoss:

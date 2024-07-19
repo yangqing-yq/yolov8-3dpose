@@ -48,8 +48,8 @@ if __name__ == "__main__":
     model_path = os.path.join(root_dir, 'runs/pose', '3dat19', 'weights/last.pt')
     print("model_path:",model_path)
     if mode == 0: # one image
-        src_path = os.path.join(dataset_path, "ConductMusic-YT-ConductMusic_S34_Trim3-ConductMusic_S34_Trim3_scene002-000101.png")
-        src_path = "test.png"
+        # src_path = os.path.join(dataset_path, "ConductMusic-YT-ConductMusic_S34_Trim3-ConductMusic_S34_Trim3_scene002-000101.png")
+        src_path = "cigar.jpg"
         res= infer_one(src_path,model_path)
         print("res:",res)
         # print("root_pose:",res['root_pose'])

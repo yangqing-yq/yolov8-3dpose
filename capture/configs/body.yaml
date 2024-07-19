@@ -1,0 +1,24 @@
+# train data
+#trainset_3d: ['Human36M', 'MPI_INF_3DHP', 'PW3D']
+#trainset_2d: ['MSCOCO', 'MPII']
+trainset_3d: ['Fit3D']
+trainset_2d: []
+testset: 'PW3D'
+
+# train params
+num_gpus: 1
+end_epoch: 13
+num_thread: 16
+lr: 0.00001
+lr_dec_factor: 10
+#lr_dec_epoch: [10, 12] #[8, 11]
+lr_dec_epoch: [6, 8, 10, 12]
+train_batch_size: 48
+test_batch_size: 64
+
+# dir params
+save_name: 'body'
+output_dir: 'exp/train_infos8'
+model_dir: 'model_dump'
+log_dir: 'logs'
+result_dir: 'results'

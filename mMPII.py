@@ -8,7 +8,7 @@ import cv2
 import torch
 from pycocotools.coco import COCO
 import sys
-sys.path.insert(1, '/dc/yolo3dpose/mod_sifan/3dat-tracking/body-tracking')
+sys.path.insert(1, '/dc/yolo3dpose/mod_sifan/yolov8-3dpose')
 from body_tracking.utils.human_models import smpl_x
 from body_tracking.utils.preprocessing_body import load_img, process_bbox, augmentation, process_db_coord, process_human_model_output
 from body_tracking.utils.vis import render_mesh, vis_kp2d, vis_kp2d_bbox

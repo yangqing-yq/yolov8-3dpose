@@ -8,7 +8,7 @@ import cv2
 import torch
 from pycocotools.coco import COCO
 import sys
-sys.path.insert(1, '/dc/yolo3dpose/mod_sifan/3dat-tracking/body-tracking')
+sys.path.insert(1, '/dc/yolo3dpose/yolov8-3dpose')
 from body_tracking.utils.human_models import smpl_x
 from body_tracking.utils.preprocessing_body import load_img, process_bbox, augmentation, process_db_coord, process_human_model_output
 from body_tracking.utils.vis import render_mesh, vis_kp2d, vis_kp2d_bbox
@@ -30,11 +30,13 @@ input_img_shape = (256, 192)
 output_hm_shape = (8, 8, 6)
 
 class MPII(torch.utils.data.Dataset):
-    def __init__(self, transform, data_split):
+    def __init__(self, transform, data_split, subdir):
+        self.subdir_name = subdir
         self.transform = transform
         self.data_split = data_split
-        self.img_path = osp.join('/data/coco_human/images/train', 'train_ubody')
-        self.annot_path = osp.join('/data/ubody_annotations/Movie')
+        self.img_path = osp.join('/data/coco_human/images',self.data_split,self.data_split+'_ubody')
+        
+        self.annot_path = osp.join('/data/ubody_annotations/',self.subdir_name)
         
         # mpii skeleton
         self.joint_set = {'body':
@@ -172,7 +174,10 @@ def infer_one(src_path, model_path):
 if __name__ == '__main__':
     # load data
     dsplit = 'train'
-    mpii = MPII(transform=None, data_split=dsplit)
+    subdir='TVShow'
+
+    os.makedirs('../results/'+subdir, exist_ok=True)
+    mpii = MPII(transform=None, data_split=dsplit, subdir=subdir)
     datalist = mpii.datalist
     cv2.namedWindow('img-kp2d',0)
     cv2.namedWindow('smplx-overlay', 0)
@@ -181,9 +186,9 @@ if __name__ == '__main__':
 
 
 
-    idx=91
+    # idx=20
 
-    for idx in range(100,200):
+    for idx in range(0,20):
         data = copy.deepcopy(datalist[idx])
         img_path, img_shape, bbox, smplx_param = data['img_path'], data['img_shape'], data['bbox'], data['smplx_param']
         # print("img_path:",img_path )
@@ -194,7 +199,7 @@ if __name__ == '__main__':
 
         img = load_img(img_path)
         img, img2bb_trans, bb2img_trans, rot, do_flip = augmentation(img, bbox, dsplit)
-        cv2.imshow('cropped-body-img', img[:,:,::-1].astype(np.uint8))
+        # cv2.imshow('cropped-body-img', img[:,:,::-1].astype(np.uint8))
 
 
 
@@ -224,12 +229,13 @@ if __name__ == '__main__':
         joint_img_ori_pred, joint_img_pred, joint_cam_pred, joint_trunc_pred, pose_pred, shape_pred, mesh_cam_orig_pred = process_human_model_output(
             smplx_param['smplx_param'], cam_param, do_flip, img_shape, img2bb_trans, rot, 'smplx', pred_anno)
 
+
         # show ori img
         img = cv2.imread(img_path)
         img2 = vis_kp2d_bbox(img, joint_img_ori, bbox)
         h, w = img2.shape[:2]
         img2 = cv2.resize(img2, (int(w * 0.5), int(h * 0.5)))
-        cv2.imwrite('results/'+str(idx)+'img-kp2d.jpg', img2)
+        cv2.imwrite('../results/'+subdir+'/'+str(idx)+'img-kp2d.jpg', img2)
         # cv2.imshow('img-kp2d', img2)
 
 
@@ -237,16 +243,16 @@ if __name__ == '__main__':
         rendered_img = render_mesh(img, mesh_cam_orig, smpl_x.face, cam_param)
         h, w = rendered_img.shape[:2]
         rendered_img = cv2.resize(rendered_img, (int(w * 0.5), int(h * 0.5)))
-        cv2.imwrite('results/'+str(idx)+'smplx-overlay.jpg', rendered_img)
+        cv2.imwrite('../results/'+subdir+'/'+str(idx)+'smplx-overlay.jpg', rendered_img)
         # cv2.imshow('smplx-overlay', rendered_img.astype(np.uint8))
 
         rendered_predimg = render_mesh(img, mesh_cam_orig_pred, smpl_x.face, cam_param)
         rendered_predimg = cv2.resize(rendered_predimg, (int(w * 0.5), int(h * 0.5)))
-        cv2.imwrite('results/'+str(idx)+'smplx-overlay_pred.jpg', rendered_predimg)
+        cv2.imwrite('../results/'+subdir+'/'+str(idx)+'smplx-overlay_pred.jpg', rendered_predimg)
         # cv2.imshow('smplx-overlay_pred', rendered_predimg.astype(np.uint8))
 
-    cv2.waitKey(0)
-
+        # cv2.waitKey(0)
+    pass
     # for idx in range(len(datalist)):
     #     print("idx:",idx)
     #     data = copy.deepcopy(datalist[idx])

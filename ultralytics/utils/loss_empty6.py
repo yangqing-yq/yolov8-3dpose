@@ -12,7 +12,6 @@ from .metrics import bbox_iou, probiou
 from .tal import bbox2dist
 
 
-
 class VarifocalLoss(nn.Module):
     """
     Varifocal loss by Zhang et al.
@@ -540,9 +539,8 @@ class v8PoseLoss(v8DetectionLoss):
         loss[4] *= self.hyp.dfl  # dfl gain
         # print("self.hyp:",self.hyp)
         # loss[5] *= 15  # 3d joint loss gain
-        loss[5] *= 15  # 3d pose loss gain (22*3)
-        loss[6] *= 15  # 3d shape loss gain (1*10)
-        loss[7] *= 15  # 3d joint loss gain input: pose + shape -> smplx_layer -> (25*3) [0,0,0....]
+        loss[5] *= 15  # 3d joint loss gain
+        loss[6] *= 15  # 3d joint loss gain
         # loss[5] *= self.hyp.euler  # 3d joint loss gain
 
         #box=7.5

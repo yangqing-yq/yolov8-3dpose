@@ -1,0 +1,21 @@
+# train data
+trainset_3d: ['FreiHAND'] 
+trainset_2d: ['MSCOCO_HAND', 'InterHand26M']
+testset: 'InterHand26M'
+
+# train params
+num_gpus: 1
+end_epoch: 13
+num_thread: 40
+lr: 0.0001
+lr_dec_factor: 10
+lr_dec_epoch: [10, 12] 
+train_batch_size: 48
+test_batch_size: 64
+
+# dir params
+save_name: 'hand'
+output_dir: 'train_infos'
+model_dir: 'model_dump'
+log_dir: 'logs'
+result_dir: 'results'

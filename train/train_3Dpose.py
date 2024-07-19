@@ -33,7 +33,7 @@ if __name__ == '__main__':
     model = load_model(yaml_file, pt_file)
 
     # model.train(data = data_conf, epochs = 100, imgsz = 640, device = [1, 3, 5, 6, 7], batch = 32*5, name = "3dat")
-    model.train(data = data_conf, epochs = 100, imgsz = 640, device = [1], batch = 32*4, name = "3dat")
+    model.train(data = data_conf, epochs = 100, imgsz = 640, device = [0], batch = 32*4, name = "3dat")
 
     model.export()
 
