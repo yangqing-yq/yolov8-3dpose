@@ -164,132 +164,130 @@ class MPII(torch.utils.data.Dataset):
 
         # print("targets:",targets)
         return inputs, targets, meta_info
+    
+    def evaluate(self, outs, cur_sample_idx):
+        annots = self.datalist
+        sample_num = len(outs)
+        eval_result = {'mpjpe': [], 'pa_mpjpe': [], 'mpvpe': [], 'pa_mpvpe': []}
 
-def infer_one(src_path, model_path):
-    model = DetBodyHandHead(model_path=model_path)
+        # 'Pelvis', 'L_Hip', 'R_Hip', 'Spine_1', 'L_Knee', 'R_Knee', 'Spine_2', 'L_Ankle', 'R_Ankle', 'Spine_3',
+        # 'L_Foot', 'R_Foot', 'Neck', 'L_Collar', 'R_Collar', 'Head', 'L_Shoulder', 'R_Shoulder', 'L_Elbow',
+        # 'R_Elbow', 'L_Wrist', 'R_Wrist',  # body joints
+        joint_mapper = [1, 2, 4, 5, 7, 8, 12, 15, 16, 17, 18, 19, 20, 21]
 
-    person_bbox = []
-    result = model(src_path, person_bbox)
-    # print("result:",result)
-    # print("result:",result[0])
-    bbox_body, bbox_lhand, bbox_rhand, bbox_head, [kpt_body, kpt_lhand, kpt_rhand], [kpt_3dbody] = result
+        for n in range(sample_num):
+            out = outs[n]
 
-    return {'root_pose':kpt_3dbody[0:3] , 'body_pose':kpt_3dbody[-63:]}
+            # h36m joint from gt mesh
+            mesh_gt_cam = out['smplx_mesh_cam_target'] #(10475,3)
+            pose_coord_gt_h36m = np.dot(smpl_x.J_regressor, mesh_gt_cam) # (55,3)
+            pose_coord_gt_h36m = pose_coord_gt_h36m[0:22, :]
+            pose_coord_gt_h36m = pose_coord_gt_h36m - pose_coord_gt_h36m[0, None]  # root-relative
+            pose_coord_gt_h36m = pose_coord_gt_h36m[joint_mapper, :] # (14,3)
+            mesh_gt_cam -= np.dot(smpl_x.J_regressor, mesh_gt_cam)[0, None, :]
 
-def print_eval_result(eval_result):
-    print('MPJPE: %.2f mm' % np.mean(eval_result['mpjpe']))
-    print('PA MPJPE: %.2f mm' % np.mean(eval_result['pa_mpjpe']))
-    print('MPVPE: %.2f mm' % np.mean(eval_result['mpvpe']))
-    print('PA MPVPE: %.2f mm' % np.mean(eval_result['pa_mpvpe']))
+            # h36m joint from output mesh
+            mesh_out_cam = out['smplx_mesh_cam']
+            mesh_out_cam_pred = mesh_out_cam.copy()
+            pose_coord_out_h36m = np.dot(smpl_x.J_regressor, mesh_out_cam) # (55,3)
+            pose_coord_out_h36m = pose_coord_out_h36m[0:22, :]
+            pose_coord_out_h36m = pose_coord_out_h36m - pose_coord_out_h36m[0, None]  # root-relative
+            pose_coord_out_h36m = pose_coord_out_h36m[joint_mapper, :] #(14,3)
+            pose_coord_out_h36m_aligned = rigid_align(pose_coord_out_h36m, pose_coord_gt_h36m)
+            eval_result['mpjpe'].append(
+                np.sqrt(np.sum((pose_coord_out_h36m - pose_coord_gt_h36m) ** 2, 1)).mean() * 1000)  # meter -> milimeter
+            eval_result['pa_mpjpe'].append(np.sqrt(
+                np.sum((pose_coord_out_h36m_aligned - pose_coord_gt_h36m) ** 2, 1)).mean() * 1000)  # meter -> milimeter
+            mesh_out_cam -= np.dot(smpl_x.J_regressor, mesh_out_cam)[0, None, :]
+            mesh_out_cam_aligned = rigid_align(mesh_out_cam, mesh_gt_cam)
+            eval_result['mpvpe'].append(
+                np.sqrt(np.sum((mesh_out_cam - mesh_gt_cam) ** 2, 1)).mean() * 1000)  # meter -> milimeter
+            eval_result['pa_mpvpe'].append(
+                np.sqrt(np.sum((mesh_out_cam_aligned - mesh_gt_cam) ** 2, 1)).mean() * 1000)  # meter -> milimeter
 
-    # f = open(os.path.join('train_infos3/body', 'result-b3.txt'), 'w')
-    # f.write(f'3DPW-test dataset: \n')
-    # f.write('MPJPE (Body): %.2f mm\n' % np.mean(eval_result['mpjpe_body']))
-    # f.write('PA MPJPE (Body): %.2f mm\n' % np.mean(eval_result['pa_mpjpe_body']))
-    #
-    # f.write(f"{np.mean(eval_result['mpjpe_body'])},{np.mean(eval_result['pa_mpjpe_body'])}")
+            # vis = True
+            # if vis:
+            #     file_name = str(cur_sample_idx + n)
+            #     img = (out['img'].transpose(1, 2, 0)[:, :, ::-1] * 255).copy()
+            #     img = img.astype(np.uint8)
+
+            #     cam_param = {}
+            #     cam_param['focal'] = (5000, 5000)
+            #     cam_param['princpt'] = (192/2, 256/2)
+            #     rendered_img = render_mesh(img, mesh_out_cam_pred, smpl_x.face, cam_param)
+            #     cv2.imshow("img", rendered_img.astype(np.uint8))
+            #     cv2.waitKey(0)
+            #     # cv2.imwrite('obj/'+file_name + '.jpg', img)
+            #     # save_obj(mesh_gt_cam, smpl_x.face, 'obj/'+file_name + '_gt.obj')
+            #     # save_obj(mesh_out_cam, smpl_x.face, 'obj/'+file_name + '.obj')
+
+        return eval_result
+
+
+
+    def infer_all(self, model_path):
+        outs=[]
+        for idx in range(0,len(datalist)):
+            # for idx in range(0,200):
+            data = copy.deepcopy(datalist[idx])
+            img_path, img_shape, bbox, smplx_param = data['img_path'], data['img_shape'], data['bbox'], data['smplx_param']
+            # print("img_path, img_shape, bbox, smplx_param :",img_path, img_shape, bbox, smplx_param )
+            cam_param = smplx_param['cam_param']
+            img = load_img(img_path)
+            img, img2bb_trans, bb2img_trans, rot, do_flip = augmentation(img, bbox, dsplit)
+
+            # anno
+            joint_img_ori, joint_img, joint_cam, joint_trunc, pose, shape, mesh_cam_orig = process_human_model_output(
+                smplx_param['smplx_param'], cam_param, do_flip, img_shape, img2bb_trans, rot, 'smplx', None)
+            
+
+            ### predict :
+            # print("model_path:",model_path)
+            print("img_path:",img_path)
+            pred_anno= self.infer_one(img_path,model_path)
+            joint_img_ori_pred, joint_img_pred, joint_cam_pred, joint_trunc_pred, pose_pred, shape_pred, mesh_cam_orig_pred = process_human_model_output(
+                smplx_param['smplx_param'], cam_param, do_flip, img_shape, img2bb_trans, rot, 'smplx', pred_anno)
+            # outs['smplx_mesh_cam'].append(mesh_cam_orig_pred)
+            outs.append({'img': img,'smplx_mesh_cam_target':mesh_cam_orig,'smplx_mesh_cam':mesh_cam_orig_pred})
+
+        return outs
+
+    def infer_one(self,src_path, model_path):
+        model = DetBodyHandHead(model_path=model_path)
+
+        person_bbox = []
+        result = model(src_path, person_bbox)
+        # print("result:",result)
+        # print("result:",result[0])
+        bbox_body, bbox_lhand, bbox_rhand, bbox_head, [kpt_body, kpt_lhand, kpt_rhand], [kpt_3dbody] = result
+
+        return {'root_pose':kpt_3dbody[0:3] , 'body_pose':kpt_3dbody[-63:]}
+    
+    def print_eval_result(self, eval_result):
+        print('MPJPE: %.2f mm' % np.mean(eval_result['mpjpe']))
+        print('PA MPJPE: %.2f mm' % np.mean(eval_result['pa_mpjpe']))
+        print('MPVPE: %.2f mm' % np.mean(eval_result['mpvpe']))
+        print('PA MPVPE: %.2f mm' % np.mean(eval_result['pa_mpvpe']))
+        # f.write(f"{np.mean(eval_result['mpjpe_body'])},{np.mean(eval_result['pa_mpjpe_body'])}")
 
 # validate gt labels, visulization
 if __name__ == '__main__':
     # load data
 
-    dsplit = 'train'
     # 0ConductMusic   1Interview   0Movie         1SignLanguage  0TalkShow
     # 1Entertainment  1LiveVlog    1Olympic       0Singing       1TVShow
     # 1Fitness        1Magic_show  1Online_class  0Speech        1VideoConference
-    
-    subdir='Fitness'
-    subdir='Singing'
-    # subdir='Movie' # RuntimeError: The size of tensor a (102) must match the size of tensor b (165) at non-singleton dimension 1
-    # subdir='TVShow'
-    # subdir='Olympic'
-    subdir='ConductMusic'
 
+    dsplit = 'train'
+    subdir='Olympic'
     os.makedirs('../results/'+subdir, exist_ok=True)
     mpii = MPII(transform=None, data_split=dsplit, subdir=subdir)
     datalist = mpii.datalist
-    # print("mpii:",mpii[0])
-    # cv2.namedWindow('img-kp2d',0)
-    # cv2.namedWindow('smplx-overlay', 0)
-
-
-    # print("datalist2:",datalist.__len__())
-
-    # H36M joint set
-    joint_set_h36m = {'body': \
-                        {'joint_num': 17,
-                        'joints_name': (
-                        'Pelvis', 'R_Hip', 'R_Knee', 'R_Ankle', 'L_Hip', 'L_Knee', 'L_Ankle', 'Torso',
-                        'Neck', 'Head', 'Head_top', 'L_Shoulder', 'L_Elbow', 'L_Wrist', 'R_Shoulder',
-                        'R_Elbow', 'R_Wrist'),
-                        'eval_joint': (1, 2, 3, 4, 5, 6, 8, 10, 11, 12, 13, 14, 15, 16),
-                        'smpl_regressor': np.load(osp.join('body_tracking','data', 'Human36M', 'J_regressor_h36m_smpl.npy'))
-                        }
-                    }
-    joint_set_h36m['body']['root_joint_idx'] = joint_set_h36m['body']['joints_name'].index('Pelvis')
-
-
-    # idx=20
 
     ### evaluate metrics
-
-    eval_result = {'mpjpe': [], 'pa_mpjpe': [], 'mpvpe': [], 'pa_mpvpe': []}
-    joint_mapper = [1, 2, 4, 5, 7, 8, 12, 15, 16, 17, 18, 19, 20, 21]
+    model_path = os.path.join(root_dir, 'runs/pose', '3dat19', 'weights/last.pt')    
+    infer_outs=mpii.infer_all(model_path)
+    eval_result=mpii.evaluate(infer_outs,0)
+    mpii.print_eval_result(eval_result)
     
-    for idx in range(0,len(datalist)):
-    # for idx in range(0,200):
-        data = copy.deepcopy(datalist[idx])
-        img_path, img_shape, bbox, smplx_param = data['img_path'], data['img_shape'], data['bbox'], data['smplx_param']
-        # print("img_path, img_shape, bbox, smplx_param :",img_path, img_shape, bbox, smplx_param )
-        cam_param = smplx_param['cam_param']
-        img = load_img(img_path)
-        img, img2bb_trans, bb2img_trans, rot, do_flip = augmentation(img, bbox, dsplit)
-
-        # anno
-        joint_img_ori, joint_img, joint_cam, joint_trunc, pose, shape, mesh_cam_orig = process_human_model_output(
-            smplx_param['smplx_param'], cam_param, do_flip, img_shape, img2bb_trans, rot, 'smplx', None)
-        # print("mesh_cam_orig:",mesh_cam_orig.shape)
-
-        # h36m joint from gt mesh
-        mesh_gt_cam = mesh_cam_orig #(10475,3)
-        pose_coord_gt_h36m = np.dot(smpl_x.J_regressor, mesh_gt_cam) # (55,3)
-        pose_coord_gt_h36m = pose_coord_gt_h36m[0:22, :]
-        pose_coord_gt_h36m = pose_coord_gt_h36m - pose_coord_gt_h36m[0, None]  # root-relative
-        pose_coord_gt_h36m = pose_coord_gt_h36m[joint_mapper, :] # (14,3)
-        mesh_gt_cam -= np.dot(smpl_x.J_regressor, mesh_gt_cam)[0, None, :]
-
-
-        ### predict :
-        model_path = os.path.join(root_dir, 'runs/pose', '3dat19', 'weights/last.pt')
-        # print("model_path:",model_path)
-        print("img_path:",img_path)
-        if img_path=="/data/coco_human/images/val/val_ubody/ConductMusic-YT-ConductMusic_S34_Trim11-ConductMusic_S34_Trim11_scene002-000001.png" \
-            or "/data/coco_human/images/val/val_ubody/ConductMusic-YT-ConductMusic_S36_Trim4-ConductMusic_S36_Trim4-000048.png" : 
-            continue
-        else:
-            pred_anno= infer_one(img_path,model_path)
-            joint_img_ori_pred, joint_img_pred, joint_cam_pred, joint_trunc_pred, pose_pred, shape_pred, mesh_cam_orig_pred = process_human_model_output(
-                smplx_param['smplx_param'], cam_param, do_flip, img_shape, img2bb_trans, rot, 'smplx', pred_anno)
-
-
-        # h36m joint from output mesh
-        mesh_out_cam = mesh_cam_orig_pred # (10475,3) but need (17,6890)
-        mesh_out_cam_pred = mesh_out_cam.copy()
-        pose_coord_out_h36m = np.dot(smpl_x.J_regressor, mesh_out_cam) # (55,3)
-        pose_coord_out_h36m = pose_coord_out_h36m[0:22, :]
-        pose_coord_out_h36m = pose_coord_out_h36m - pose_coord_out_h36m[0, None]  # root-relative
-        pose_coord_out_h36m = pose_coord_out_h36m[joint_mapper, :] #(14,3)
-        pose_coord_out_h36m_aligned = rigid_align(pose_coord_out_h36m, pose_coord_gt_h36m)
-        eval_result['mpjpe'].append(
-            np.sqrt(np.sum((pose_coord_out_h36m - pose_coord_gt_h36m) ** 2, 1)).mean() * 1000)  # meter -> milimeter
-        eval_result['pa_mpjpe'].append(np.sqrt(
-            np.sum((pose_coord_out_h36m_aligned - pose_coord_gt_h36m) ** 2, 1)).mean() * 1000)  # meter -> milimeter
-        mesh_out_cam -= np.dot(smpl_x.J_regressor, mesh_out_cam)[0, None, :]
-        mesh_out_cam_aligned = rigid_align(mesh_out_cam, mesh_gt_cam)
-        eval_result['mpvpe'].append(
-            np.sqrt(np.sum((mesh_out_cam - mesh_gt_cam) ** 2, 1)).mean() * 1000)  # meter -> milimeter
-        eval_result['pa_mpvpe'].append(
-            np.sqrt(np.sum((mesh_out_cam_aligned - mesh_gt_cam) ** 2, 1)).mean() * 1000)  # meter -> milimeter
-
-    print_eval_result(eval_result)
 
