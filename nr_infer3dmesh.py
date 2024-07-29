@@ -174,13 +174,13 @@ def infer_one(src_path, model_path):
 if __name__ == '__main__':
     # load data
     dsplit = 'train'
-    subdir='TVShow'
+    subdir='Singing'
 
     os.makedirs('../results/'+subdir, exist_ok=True)
     mpii = MPII(transform=None, data_split=dsplit, subdir=subdir)
     datalist = mpii.datalist
-    cv2.namedWindow('img-kp2d',0)
-    cv2.namedWindow('smplx-overlay', 0)
+    # cv2.namedWindow('img-kp2d',0)
+    # cv2.namedWindow('smplx-overlay', 0)
 
     # print("datalist:",datalist)
 
@@ -188,7 +188,7 @@ if __name__ == '__main__':
 
     # idx=20
 
-    for idx in range(0,20):
+    for idx in range(0,10):
         data = copy.deepcopy(datalist[idx])
         img_path, img_shape, bbox, smplx_param = data['img_path'], data['img_shape'], data['bbox'], data['smplx_param']
         # print("img_path:",img_path )
@@ -253,46 +253,3 @@ if __name__ == '__main__':
 
         # cv2.waitKey(0)
     pass
-    # for idx in range(len(datalist)):
-    #     print("idx:",idx)
-    #     data = copy.deepcopy(datalist[idx])
-    #     img_path, img_shape, bbox, smplx_param = data['img_path'], data['img_shape'], data['bbox'], data['smplx_param']
-    #     cam_param = smplx_param['cam_param']
-
-    #     try:
-    #         pred_anno = pred_json[img_path.split("/")[-1]]
-    #         if len(pred_anno['root_pose']) == 0:
-    #             continue
-    #     except Exception as e:
-    #         print(f"Error: {e}")
-    #         continue
-
-    #     img = load_img(img_path)
-    #     img, img2bb_trans, bb2img_trans, rot, do_flip = augmentation(img, bbox, dsplit)
-    #     cv2.imshow('cropped-body-img', img[:,:,::-1].astype(np.uint8))
-
-    #     # anno
-    #     joint_img_ori, joint_img, joint_cam, joint_trunc, pose, shape, mesh_cam_orig = process_human_model_output(
-    #         smplx_param['smplx_param'], cam_param, do_flip, img_shape, img2bb_trans, rot, 'smplx', None)
-
-    #     # pred
-    #     joint_img_ori_pred, joint_img_pred, joint_cam_pred, joint_trunc_pred, pose_pred, shape_pred, mesh_cam_orig_pred = process_human_model_output(
-    #         smplx_param['smplx_param'], cam_param, do_flip, img_shape, img2bb_trans, rot, 'smplx', pred_anno)
-
-    #     # show ori img
-    #     img = cv2.imread(img_path)
-    #     img2 = vis_kp2d_bbox(img, joint_img_ori, bbox)
-    #     cv2.imshow('img-kp2d', img2)
-
-    #     # mesh render
-    #     rendered_img = render_mesh(img, mesh_cam_orig, smpl_x.face, cam_param)
-    #     # cv2.imwrite(str(idx)+'.jpg', rendered_img)
-    #     cv2.imshow('smplx-overlay', rendered_img.astype(np.uint8))
-
-    #     rendered_predimg = render_mesh(img, mesh_cam_orig_pred, smpl_x.face, cam_param)
-    #     h, w = rendered_img.shape[:2]
-    #     rendered_predimg = cv2.resize(rendered_predimg, (int(w * 0.3), int(h * 0.3)))
-    #     cv2.imshow('smplx-overlay_pred', rendered_predimg.astype(np.uint8))
-
-    #     cv2.waitKey(0)
-    # pass
