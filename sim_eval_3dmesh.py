@@ -227,9 +227,9 @@ class MPII(torch.utils.data.Dataset):
 
     def infer_all(self, model_path):
         outs=[]
-        for idx in range(0,len(datalist)):
+        for idx in range(0,len(self.datalist)):
             # for idx in range(0,200):
-            data = copy.deepcopy(datalist[idx])
+            data = copy.deepcopy(self.datalist[idx])
             img_path, img_shape, bbox, smplx_param = data['img_path'], data['img_shape'], data['bbox'], data['smplx_param']
             # print("img_path, img_shape, bbox, smplx_param :",img_path, img_shape, bbox, smplx_param )
             cam_param = smplx_param['cam_param']
@@ -273,19 +273,16 @@ class MPII(torch.utils.data.Dataset):
 # validate gt labels, visulization
 if __name__ == '__main__':
     # load data
-
-    # 0ConductMusic   1Interview   0Movie         1SignLanguage  0TalkShow
-    # 1Entertainment  1LiveVlog    1Olympic       0Singing       1TVShow
-    # 1Fitness        1Magic_show  1Online_class  0Speech        1VideoConference
-
+    subdirs=['ConductMusic','Interview','Movie','SignLanguage','TalkShow','Entertainment',\
+             'LiveVlog','Olympic','Singing','TVShow','Fitness','Magic_show','Online_class',\
+                'Speech ','VideoConference']
     dsplit = 'train'
     subdir='Olympic'
-    os.makedirs('../results/'+subdir, exist_ok=True)
+    model_path = os.path.join(root_dir, 'runs/pose', '3dat19', 'weights/last.pt')    
+
     mpii = MPII(transform=None, data_split=dsplit, subdir=subdir)
-    datalist = mpii.datalist
 
     ### evaluate metrics
-    model_path = os.path.join(root_dir, 'runs/pose', '3dat19', 'weights/last.pt')    
     infer_outs=mpii.infer_all(model_path)
     eval_result=mpii.evaluate(infer_outs,0)
     mpii.print_eval_result(eval_result)
