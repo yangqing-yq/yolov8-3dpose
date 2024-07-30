@@ -2,6 +2,7 @@ import os
 import os.path as osp
 import numpy as np
 # from config import cfg
+import csv
 import copy
 import json
 import cv2
@@ -270,6 +271,15 @@ class MPII(torch.utils.data.Dataset):
         print('PA MPVPE: %.2f mm' % np.mean(eval_result['pa_mpvpe']))
         # f.write(f"{np.mean(eval_result['mpjpe_body'])},{np.mean(eval_result['pa_mpjpe_body'])}")
 
+    def write_eval_result(self, eval_result, subdir):
+        with open('../eval_csvs/'+subdir+'_eval.csv', 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["sub",subdir])
+            writer.writerow(["MPJPE",np.mean(eval_result['mpjpe'])])
+            writer.writerow(["PA MPJPE", np.mean(eval_result['pa_mpjpe'])])
+            writer.writerow(["MPVPE",np.mean(eval_result['mpvpe'])])
+            writer.writerow(["PA MPVPE",np.mean(eval_result['pa_mpvpe'])])
+
 # validate gt labels, visulization
 if __name__ == '__main__':
     # load data
@@ -277,14 +287,17 @@ if __name__ == '__main__':
              'LiveVlog','Olympic','Singing','TVShow','Fitness','Magic_show','Online_class',\
                 'Speech ','VideoConference']
     dsplit = 'train'
-    subdir='Olympic'
+    subdir='SignLanguage'
     model_path = os.path.join(root_dir, 'runs/pose', '3dat19', 'weights/last.pt')    
 
     mpii = MPII(transform=None, data_split=dsplit, subdir=subdir)
 
+    os.makedirs('../results/'+subdir, exist_ok=True)
+    os.makedirs('../eval_csvs/', exist_ok=True)
+    
     ### evaluate metrics
     infer_outs=mpii.infer_all(model_path)
     eval_result=mpii.evaluate(infer_outs,0)
     mpii.print_eval_result(eval_result)
-    
+    mpii.write_eval_result(eval_result,subdir)
 
