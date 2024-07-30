@@ -283,21 +283,35 @@ class MPII(torch.utils.data.Dataset):
 # validate gt labels, visulization
 if __name__ == '__main__':
     # load data
-    subdirs=['ConductMusic','Interview','Movie','SignLanguage','TalkShow','Entertainment',\
-             'LiveVlog','Olympic','Singing','TVShow','Fitness','Magic_show','Online_class',\
-                'Speech ','VideoConference']
+    # subdirs=['ConductMusic','Interview','Movie','SignLanguage','TalkShow','Entertainment',\
+    #          'LiveVlog','Olympic','Singing','TVShow','Fitness','Magic_show','Online_class',\
+    #             'Speech ','VideoConference']
+
+    ## valid subdirs
+    subdirs=['Interview','SignLanguage','TalkShow','Entertainment','LiveVlog',\
+             'Olympic','TVShow','Fitness','Magic_show','Online_class','VideoConference']
+
     dsplit = 'train'
-    subdir='SignLanguage'
+
     model_path = os.path.join(root_dir, 'runs/pose', '3dat19', 'weights/last.pt')    
 
-    mpii = MPII(transform=None, data_split=dsplit, subdir=subdir)
-
-    os.makedirs('../results/'+subdir, exist_ok=True)
     os.makedirs('../eval_csvs/', exist_ok=True)
     
     ### evaluate metrics
-    infer_outs=mpii.infer_all(model_path)
-    eval_result=mpii.evaluate(infer_outs,0)
-    mpii.print_eval_result(eval_result)
-    mpii.write_eval_result(eval_result,subdir)
+    if 0:
+        ### single test
+        subdir='SignLanguage'
+        mpii = MPII(transform=None, data_split=dsplit, subdir=subdir)
+        infer_outs=mpii.infer_all(model_path)
+        eval_result=mpii.evaluate(infer_outs,0)
+        mpii.print_eval_result(eval_result)
+        mpii.write_eval_result(eval_result,subdir)
 
+    else:
+        ### test all subdirs 
+        for subdir in subdirs:
+            mpii = MPII(transform=None, data_split=dsplit, subdir=subdir)
+            infer_outs=mpii.infer_all(model_path)
+            eval_result=mpii.evaluate(infer_outs,0)
+            mpii.print_eval_result(eval_result)
+            mpii.write_eval_result(eval_result,subdir)
