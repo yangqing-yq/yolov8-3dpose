@@ -280,6 +280,7 @@ class MPII(torch.utils.data.Dataset):
             writer.writerow(["MPVPE",np.mean(eval_result['mpvpe'])])
             writer.writerow(["PA MPVPE",np.mean(eval_result['pa_mpvpe'])])
 
+
 # validate gt labels, visulization
 if __name__ == '__main__':
     # load data
