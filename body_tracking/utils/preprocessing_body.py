@@ -381,7 +381,7 @@ def process_human_model_output_old(human_model_param, cam_param, do_flip, img_sh
         return joint_img_ori, joint_img, joint_cam, joint_trunc, pose, shape, mesh_cam_orig
 
 
-def process_human_model_output(human_model_param, cam_param, do_flip, img_shape, img2bb_trans, rot, human_model_type, pred_anno):
+def process_human_model_output_old2(human_model_param, cam_param, do_flip, img_shape, img2bb_trans, rot, human_model_type, pred_anno):
     if human_model_type == 'smplx':
         human_model = smpl_x
         # rotation_valid = np.ones((smpl_x.orig_joint_num), dtype=np.float32)
@@ -393,6 +393,177 @@ def process_human_model_output(human_model_param, cam_param, do_flip, img_shape,
         human_model_param['shape'], human_model_param['trans']
         if pred_anno != None:
             _, body_pose = pred_anno['root_pose'], pred_anno['body_pose']
+        if 'lhand_pose' in human_model_param: # and human_model_param['lhand_valid']:
+            lhand_pose = human_model_param['lhand_pose']
+        else:
+            lhand_pose = np.zeros((3 * len(smpl_x.orig_joint_part['lhand'])), dtype=np.float32)
+            # rotation_valid[smpl_x.orig_joint_part['lhand']] = 0
+            # coord_valid[smpl_x.joint_part['lhand']] = 0
+        if 'rhand_pose' in human_model_param: # and human_model_param['rhand_valid']:
+            rhand_pose = human_model_param['rhand_pose']
+        else:
+            rhand_pose = np.zeros((3 * len(smpl_x.orig_joint_part['rhand'])), dtype=np.float32)
+            # rotation_valid[smpl_x.orig_joint_part['rhand']] = 0
+            # coord_valid[smpl_x.joint_part['rhand']] = 0
+        if 'jaw_pose' in human_model_param and 'expr' in human_model_param: # and human_model_param['face_valid']:
+            jaw_pose = human_model_param['jaw_pose']
+            expr = human_model_param['expr']
+            expr_valid = True
+        else:
+            jaw_pose = np.zeros((3), dtype=np.float32)
+            expr = np.zeros((smpl_x.expr_code_dim), dtype=np.float32)
+            # rotation_valid[smpl_x.orig_joint_part['face']] = 0
+            # coord_valid[smpl_x.joint_part['face']] = 0
+            expr_valid = False
+        if 'gender' in human_model_param:
+            gender = human_model_param['gender']
+        else:
+            gender = 'neutral'
+        root_pose = torch.FloatTensor(root_pose).view(1, 3)  # (1,3)
+        body_pose = torch.FloatTensor(body_pose).view(-1, 3)  # (21,3)
+        lhand_pose = torch.FloatTensor(lhand_pose).view(-1, 3)  # (15,3)
+        rhand_pose = torch.FloatTensor(rhand_pose).view(-1, 3)  # (15,3)
+        jaw_pose = torch.FloatTensor(jaw_pose).view(-1, 3)  # (1,3)
+        shape = torch.FloatTensor(shape).view(1, -1)  # SMPLX shape parameter
+        expr = torch.FloatTensor(expr).view(1, -1)  # SMPLX expression parameter
+        trans = torch.FloatTensor(trans).view(1, -1)  # translation vector
+
+        # apply camera extrinsic (rotation)
+        # merge root pose and camera rotation
+        if 'R' in cam_param:
+            R = np.array(cam_param['R'], dtype=np.float32).reshape(3, 3)
+            root_pose = root_pose.numpy()
+            root_pose, _ = cv2.Rodrigues(root_pose)
+            root_pose, _ = cv2.Rodrigues(np.dot(R, root_pose))
+            root_pose = torch.from_numpy(root_pose).view(1, 3)
+
+        # get mesh and joint coordinates
+        zero_pose = torch.zeros((1, 3)).float()  # eye poses
+        with torch.no_grad():
+            output = smpl_x.layer[gender](betas=shape, body_pose=body_pose.view(1, -1), global_orient=root_pose,
+                                          transl=trans, left_hand_pose=lhand_pose.view(1, -1),
+                                          right_hand_pose=rhand_pose.view(1, -1), jaw_pose=jaw_pose.view(1, -1),
+                                          leye_pose=zero_pose, reye_pose=zero_pose, expression=expr)
+        mesh_cam = output.vertices[0].numpy()
+        joint_cam = output.joints[0].numpy()[smpl_x.joint_idx, :] #(137,3)
+        joint_cam = joint_cam[0:25,:] #(25,3)
+        # joint_cam = np.dot(smpl_x.J_regressor, mesh_cam) # (55,3)
+        # joint_cam = joint_cam[0:22, :]
+
+        # apply camera exrinsic (translation)
+        # compenstate rotation (translation from origin to root joint was not cancled)
+        if 'R' in cam_param and 't' in cam_param:
+            R, t = np.array(cam_param['R'], dtype=np.float32).reshape(3, 3), np.array(cam_param['t'],
+                                                                                      dtype=np.float32).reshape(1, 3)
+            root_cam = joint_cam[smpl_x.root_joint_idx, None, :]
+            joint_cam = joint_cam - root_cam + np.dot(R, root_cam.transpose(1, 0)).transpose(1, 0) + t
+            mesh_cam = mesh_cam - root_cam + np.dot(R, root_cam.transpose(1, 0)).transpose(1, 0) + t
+
+            # root_cam_25 = joint_cam_25[smpl_x.root_joint_idx, None, :]
+            # joint_cam_25 = joint_cam_25 - root_cam_25 + np.dot(R, root_cam_25.transpose(1, 0)).transpose(1, 0) + t
+
+        # concat root, body, two hands, and jaw pose
+        # pose = torch.cat((root_pose, body_pose, lhand_pose, rhand_pose, jaw_pose))
+        pose = torch.cat((root_pose, body_pose))
+
+        # joint coordinates
+        # joint_img_25 = cam2pixel(joint_cam_25, cam_param['focal'], cam_param['princpt'])
+        # joint_img_ori_25 = joint_img_25.copy()[:, 0:2]  # (22,2)
+        joint_img = cam2pixel(joint_cam, cam_param['focal'], cam_param['princpt'])
+        joint_img_ori = joint_img.copy()[:, 0:2] #(25,2)
+        joint_cam = joint_cam - joint_cam[smpl_x.orig_root_joint_idx, None, :]  # root-relative
+        # joint_cam[smpl_x.joint_part['lhand'], :] = joint_cam[smpl_x.joint_part['lhand'], :] - joint_cam[
+        #                                                                                       smpl_x.lwrist_idx, None,
+        #                                                                                       :]  # left hand root-relative
+        # joint_cam[smpl_x.joint_part['rhand'], :] = joint_cam[smpl_x.joint_part['rhand'], :] - joint_cam[
+        #                                                                                       smpl_x.rwrist_idx, None,
+        #                                                                                       :]  # right hand root-relative
+        # joint_cam[smpl_x.joint_part['face'], :] = joint_cam[smpl_x.joint_part['face'], :] - joint_cam[smpl_x.neck_idx,
+        #                                                                                     None,
+        #                                                                                     :]  # face root-relative
+        joint_img[smpl_x.orig_joint_part['body'], 2] = (joint_cam[smpl_x.orig_joint_part['body'], 2].copy() / (
+                    bbox_3d_size / 2) + 1) / 2. * output_hm_shape[0]  # body depth discretize
+        # joint_img[smpl_x.joint_part['lhand'], 2] = (joint_cam[smpl_x.joint_part['lhand'], 2].copy() / (
+        #             cfg.hand_3d_size / 2) + 1) / 2. * cfg.output_hm_shape[0]  # left hand depth discretize
+        # joint_img[smpl_x.joint_part['rhand'], 2] = (joint_cam[smpl_x.joint_part['rhand'], 2].copy() / (
+        #             cfg.hand_3d_size / 2) + 1) / 2. * cfg.output_hm_shape[0]  # right hand depth discretize
+        # joint_img[smpl_x.joint_part['face'], 2] = (joint_cam[smpl_x.joint_part['face'], 2].copy() / (
+        #             cfg.face_3d_size / 2) + 1) / 2. * cfg.output_hm_shape[0]  # face depth discretize
+
+
+
+    mesh_cam_orig = mesh_cam.copy()  # back-up the original one
+
+    ## so far, data augmentations are not applied yet
+    ## now, apply data augmentations
+
+    # image projection
+    if do_flip:
+        joint_cam[:, 0] = -joint_cam[:, 0]
+        joint_img[:, 0] = img_shape[1] - 1 - joint_img[:, 0]
+        for pair in human_model.flip_body_pairs:
+            joint_cam[pair[0], :], joint_cam[pair[1], :] = joint_cam[pair[1], :].copy(), joint_cam[pair[0], :].copy()
+            joint_img[pair[0], :], joint_img[pair[1], :] = joint_img[pair[1], :].copy(), joint_img[pair[0], :].copy()
+            # if human_model_type == 'smplx':
+            #     coord_valid[pair[0]], coord_valid[pair[1]] = coord_valid[pair[1]].copy(), coord_valid[pair[0]].copy()
+
+    # x,y affine transform, root-relative depth
+    joint_img_xy1 = np.concatenate((joint_img[:, :2], np.ones_like(joint_img[:, 0:1])), 1)
+    joint_img[:, :2] = np.dot(img2bb_trans, joint_img_xy1.transpose(1, 0)).transpose(1, 0)[:, :2]
+    joint_img[:, 0] = joint_img[:, 0] / input_img_shape[1] * output_hm_shape[2]
+    joint_img[:, 1] = joint_img[:, 1] / input_img_shape[0] * output_hm_shape[1]
+
+    # check truncation
+    joint_trunc = ((joint_img[:, 0] >= 0) * (joint_img[:, 0] < output_hm_shape[2]) * \
+                   (joint_img[:, 1] >= 0) * (joint_img[:, 1] < output_hm_shape[1]) * \
+                   (joint_img[:, 2] >= 0) * (joint_img[:, 2] < output_hm_shape[0])).reshape(-1, 1).astype(
+        np.float32)
+
+    # 3D data rotation augmentation
+    rot_aug_mat = np.array([[np.cos(np.deg2rad(-rot)), -np.sin(np.deg2rad(-rot)), 0],
+                            [np.sin(np.deg2rad(-rot)), np.cos(np.deg2rad(-rot)), 0],
+                            [0, 0, 1]], dtype=np.float32)
+    # coordinate
+    joint_cam = np.dot(rot_aug_mat, joint_cam.transpose(1, 0)).transpose(1, 0)
+    # parameters
+    # flip pose parameter (axis-angle)
+    if do_flip:
+        for pair in human_model.orig_flip_body_pairs:
+            pose[pair[0], :], pose[pair[1], :] = pose[pair[1], :].clone(), pose[pair[0], :].clone()
+            # if human_model_type == 'smplx':
+            #     rotation_valid[pair[0]], rotation_valid[pair[1]] = rotation_valid[pair[1]].copy(), rotation_valid[
+            #         pair[0]].copy()
+        pose[:, 1:3] *= -1  # multiply -1 to y and z axis of axis-angle
+
+    # rotate root pose
+    pose = pose.numpy()
+    root_pose = pose[human_model.orig_root_joint_idx, :]
+    root_pose, _ = cv2.Rodrigues(root_pose)
+    root_pose, _ = cv2.Rodrigues(np.dot(rot_aug_mat, root_pose))
+    pose[human_model.orig_root_joint_idx] = root_pose.reshape(3)
+
+    # change to mean shape if beta is too far from it
+    shape[(shape.abs() > 3).any(dim=1)] = 0.
+    shape = shape.numpy().reshape(-1)
+
+    # return results
+    if human_model_type == 'smplx':
+        pose = pose.reshape(-1)
+        expr = expr.numpy().reshape(-1)
+        return joint_img_ori, joint_img, joint_cam, joint_trunc, pose, shape, mesh_cam_orig
+
+def process_human_model_output(human_model_param, cam_param, do_flip, img_shape, img2bb_trans, rot, human_model_type, pred_anno):
+    if human_model_type == 'smplx':
+        human_model = smpl_x
+        # rotation_valid = np.ones((smpl_x.orig_joint_num), dtype=np.float32)
+        # coord_valid = np.ones((smpl_x.joint_num), dtype=np.float32)
+        # rotation_valid = np.ones(smpl_x.orig_body_joint_num, dtype=np.float32)
+        # coord_valid = np.ones((smpl_x.pos_joint_num), dtype=np.float32)
+
+        root_pose, body_pose, shape, trans = human_model_param['root_pose'], human_model_param['body_pose'], \
+        human_model_param['shape'], human_model_param['trans']
+        if pred_anno != None:
+            root_pose, body_pose = pred_anno['root_pose'], pred_anno['body_pose']
         if 'lhand_pose' in human_model_param: # and human_model_param['lhand_valid']:
             lhand_pose = human_model_param['lhand_pose']
         else:
