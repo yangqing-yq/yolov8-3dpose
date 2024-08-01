@@ -240,7 +240,8 @@ class MPII(torch.utils.data.Dataset):
             # anno
             joint_img_ori, joint_img, joint_cam, joint_trunc, pose, shape, mesh_cam_orig = process_human_model_output(
                 smplx_param['smplx_param'], cam_param, do_flip, img_shape, img2bb_trans, rot, 'smplx', None)
-            
+            # print("shape:",shape.shape) #10
+            # print("pose:",pose.shape) #66
 
             ### predict :
             # print("model_path:",model_path)
@@ -249,6 +250,11 @@ class MPII(torch.utils.data.Dataset):
             joint_img_ori_pred, joint_img_pred, joint_cam_pred, joint_trunc_pred, pose_pred, shape_pred, mesh_cam_orig_pred = process_human_model_output(
                 smplx_param['smplx_param'], cam_param, do_flip, img_shape, img2bb_trans, rot, 'smplx', pred_anno)
             # outs['smplx_mesh_cam'].append(mesh_cam_orig_pred)
+            # print("shape_pred:",shape_pred.shape) #10
+            # print("pose_pred:",pose_pred.shape) #66
+            # # print("pred_anno:",pred_anno) 
+            # print("pred_anno:",pred_anno.keys()) #dict 66 root pose+ body pose 
+
             outs.append({'img': img,'smplx_mesh_cam_target':mesh_cam_orig,'smplx_mesh_cam':mesh_cam_orig_pred})
 
         return outs
@@ -274,11 +280,11 @@ class MPII(torch.utils.data.Dataset):
     def write_eval_result(self, eval_result, subdir):
         with open('../eval_csvs/'+subdir+'_eval.csv', 'w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["sub",subdir])
-            writer.writerow(["MPJPE",np.mean(eval_result['mpjpe'])])
-            writer.writerow(["PA MPJPE", np.mean(eval_result['pa_mpjpe'])])
-            writer.writerow(["MPVPE",np.mean(eval_result['mpvpe'])])
-            writer.writerow(["PA MPVPE",np.mean(eval_result['pa_mpvpe'])])
+            writer.writerow(["subdir",subdir])
+            writer.writerow(["MPJPE",np.around(np.mean(eval_result['mpjpe']),3)])
+            writer.writerow(["PA MPJPE", np.around(np.mean(eval_result['pa_mpjpe']),3)])
+            writer.writerow(["MPVPE",np.around(np.mean(eval_result['mpvpe']),3)])
+            writer.writerow(["PA MPVPE",np.around(np.mean(eval_result['pa_mpvpe']),3)])
 
 
 # validate gt labels, visulization
