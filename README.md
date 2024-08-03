@@ -1,12 +1,14 @@
-# Installation
+# YOLO-3DPose
 
-## Conda
+## Installation
+
+### Conda
     • conda create -n yolo3d python=3.8
     • conda activate yolo3d
     • conda install pytorch==1.11.0 torchvision==0.12.0 torchaudio==0.11.0 cudatoolkit=11.3 -c pytorch
     • conda install -c conda-forge openvino=2024.2.0
 
-## Environment
+### Environment
     # Install other required libraries
     # Tips, upgrade openvino-dev, torch, torchvision to ensure they are compatible
     • pip install -r requirements.txt
@@ -68,6 +70,12 @@ ${PROJECT_ROOT}
 |   |   |   |   |-- flame_dynamic_embedding.npy
 |   |   |   |   |-- flame_static_embedding.pkl
 |   |   |   |   |-- FLAME_NEUTRAL.pkl
+```
+
+## Label structure
+```
+|--bit	bit 0 ~ bit 3	bit 4 ~ bit 7	bit 8 ~ bit 118	bit 119 ~ bit 184 bit 185 ~ bit 195
+|--output	box_x, box_y, w, h	c_person, c_left, c_right, c_head	[x, y, c] * 37	[Roll, Pitch, Yaw] * 22 [shape_param] * 10
 ```
 
 ## Train(ongoing)
