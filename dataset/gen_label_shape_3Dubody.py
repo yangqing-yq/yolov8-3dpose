@@ -257,11 +257,11 @@ def handle_one(subject):
 
 if __name__ == '__main__':
 
-    ubody_root_dir = r'/data/coco_human/'
+    ubody_root_dir = r'/data/coco_human_192_all/'
     anno_dir = os.path.join(ubody_root_dir, 'ubody_annotations')
     img_root = os.path.join(ubody_root_dir, 'images')
 
-    save_dir = os.path.join(ubody_root_dir, 'labels_shape_1')
+    save_dir = os.path.join(ubody_root_dir, '3d_angles')
     # save_dir = make_dirs(save_dir)
 
     train_dir = os.path.join(save_dir, 'train', 'train_ubody')

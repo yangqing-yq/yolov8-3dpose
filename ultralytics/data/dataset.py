@@ -57,16 +57,23 @@ class YOLODataset(BaseDataset):
         total = len(self.im_files)
         nkpt, ndim = self.data.get('kpt_shape', (0, 0))
         n3dkpt, n3ddim = self.data.get('kpt_3dshape', (0, 0))
+        nsmplshapeparam, nsmpleshapedim = self.data.get('smpl_shape', (0, 0))
+
         if self.use_keypoints and (nkpt <= 0 or ndim not in (2, 3)):
             raise ValueError("'kpt_shape' in data.yaml missing or incorrect. Should be a list with [number of "
                              "keypoints, number of dims (2 for x,y or 3 for x,y,visible)], i.e. 'kpt_shape: [17, 3]'")
+        # print("self.im_files, self.label_files:",self.im_files, self.label_files)
+        # print("nkpt, ndim,n3dkpt, n3ddim,nsmplshapeparam, nsmpleshapedim:",nkpt, ndim,n3dkpt, n3ddim,nsmplshapeparam, nsmpleshapedim)
         with ThreadPool(NUM_THREADS) as pool:
             results = pool.imap(func=verify_image_label,
                                 iterable=zip(self.im_files, self.label_files, repeat(self.prefix),
                                              repeat(self.use_keypoints), repeat(len(self.data['names'])), 
-                                             repeat(nkpt), repeat(ndim), repeat(n3dkpt), repeat(n3ddim)))
+                                             repeat(nkpt), repeat(ndim), repeat(n3dkpt), repeat(n3ddim),
+                                             repeat(nsmplshapeparam),repeat(nsmpleshapedim)))
+            # print("results:",results)
             pbar = TQDM(results, desc=desc, total=total)
-            for im_file, lb, shape, segments, keypoint, keypoint_3d, nm_f, nf_f, ne_f, nc_f, msg in pbar:
+            for im_file, lb, shape, segments, keypoint, keypoint_3d, smpl_shape, nm_f, nf_f, ne_f, nc_f, msg in pbar:
+                # print("im_file, lb, shape, segments, keypoint, keypoint_3d, nm_f, nf_f, ne_f, nc_f, msg:",im_file, lb, shape, segments, keypoint, keypoint_3d, nm_f, nf_f, ne_f, nc_f, msg)
                 nm += nm_f
                 nf += nf_f
                 ne += ne_f
@@ -81,6 +88,7 @@ class YOLODataset(BaseDataset):
                             segments=segments,
                             keypoints=keypoint,
                             keypoints_3d=keypoint_3d,
+                            smpl_shape=smpl_shape,
                             normalized=True,
                             bbox_format='xywh'))
                 if msg:
@@ -101,13 +109,22 @@ class YOLODataset(BaseDataset):
     def get_labels(self):
         """Returns dictionary of labels for YOLO training."""
         self.label_files = img2label_paths(self.im_files)
+        # print("self.im_files:",self.im_files)    
+        print("-------------------------")   
+        # print("self.label_files:",self.label_files)
         cache_path = Path(self.label_files[0]).parent.with_suffix('.cache')
+        # print("cache_path:",cache_path)
         try:
+            print("load_dataset_cache_file")
             cache, exists = load_dataset_cache_file(cache_path), True  # attempt to load a *.cache file
+            # print("cache:",cache)
             assert cache['version'] == DATASET_CACHE_VERSION  # matches current version
             assert cache['hash'] == get_hash(self.label_files + self.im_files)  # identical hash
         except (FileNotFoundError, AssertionError, AttributeError):
+            # print("cache_labels")
             cache, exists = self.cache_labels(cache_path), False  # run cache ops
+            # print("cache['labels']:",cache['labels'])
+            # print("cache['results']:",cache['results'])
 
         # Display cache
         nf, nm, ne, nc, n = cache.pop('results')  # found, missing, empty, corrupt, total
@@ -119,13 +136,18 @@ class YOLODataset(BaseDataset):
 
         # Read cache
         [cache.pop(k) for k in ('hash', 'version', 'msgs')]  # remove items
+
         labels = cache['labels']
+        print("labels:",len(labels))
         if not labels:
             LOGGER.warning(f'WARNING ⚠️ No images found in {cache_path}, training may not work correctly. {HELP_URL}')
         self.im_files = [lb['im_file'] for lb in labels]  # update im_files
 
         # Check if the dataset is all boxes or all segments
+        # print("len(lb['cls']), len(lb['bboxes']), len(lb['segments']):",len(lb['cls']), len(lb['bboxes']), len(lb['segments']))
+
         lengths = ((len(lb['cls']), len(lb['bboxes']), len(lb['segments'])) for lb in labels)
+
         len_cls, len_boxes, len_segments = (sum(x) for x in zip(*lengths))
         if len_segments and len_boxes != len_segments:
             LOGGER.warning(

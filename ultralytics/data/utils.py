@@ -31,7 +31,9 @@ PIN_MEMORY = str(os.getenv('PIN_MEMORY', True)).lower() == 'true'  # global pin_
 
 def img2label_paths(img_paths):
     """Define label paths as a function of image paths."""
+    ###yq
     sa, sb = f'{os.sep}images{os.sep}', f'{os.sep}3d_angles{os.sep}'  # /images/, /labels/ substrings
+    # sa, sb = f'{os.sep}images{os.sep}', f'{os.sep}labels_shape{os.sep}'  # /images/, /labels/ substrings
     return [sb.join(x.rsplit(sa, 1)).rsplit('.', 1)[0] + '.txt' for x in img_paths]
 
 
@@ -83,7 +85,7 @@ def verify_image(args):
 
 def verify_image_label(args):
     """Verify one image-label pair."""
-    im_file, lb_file, prefix, keypoint, num_cls, nkpt, ndim, n3dkpt, n3ddim= args
+    im_file, lb_file, prefix, keypoint, num_cls, nkpt, ndim, n3dkpt, n3ddim, nsmplshapeparam, nsmplshapedim= args
     # Number (missing, found, empty, corrupt), message, segments, keypoints
     nm, nf, ne, nc, msg, segments, keypoints = 0, 0, 0, 0, '', [], None
     try:
@@ -112,11 +114,20 @@ def verify_image_label(args):
                     lb = np.concatenate((classes.reshape(-1, 1), segments2boxes(segments)), 1)  # (cls, xywh)
                 lb = np.array(lb, dtype=np.float32)
             nl = len(lb)
+            # print("lb[0]:",lb[0].shape) #lb[0]: (192,) ; lb[1]: (192,) .. 
+            print("nl:",nl) # 3~6
             if nl:
+                # print("keypoint:",keypoint) # all True
                 if keypoint:
-                    assert lb.shape[1] == (5 + nkpt * ndim + n3dkpt * n3ddim), f'labels require {(5 + nkpt * ndim + n3dkpt * n3ddim)} columns each'
+                    # print("lb.shape[1]:",lb.shape[1]) # 192
+                    # print("nsmplshapeparam,nsmplshapedim :",nsmplshapeparam,nsmplshapedim )
+                    assert lb.shape[1] == (5 + nkpt * ndim + n3dkpt * n3ddim + nsmplshapeparam*nsmplshapedim ), f'labels require {(5 + nkpt * ndim + n3dkpt * n3ddim + nsmplshapeparam*nsmplshapedim )} columns each'
                     points = lb[:, 5:(5 + nkpt * ndim)].reshape(-1, ndim)[:, :2]
-                    points_3d = lb[:, (5 + nkpt * ndim):].reshape(-1, n3ddim)
+                    # print("nl points:",points.shape)
+                    # print("before points_3d:]:",lb[:, (5 + nkpt * ndim):].shape)
+                    points_3d = lb[:, (5 + nkpt * ndim):(5 + nkpt * ndim + n3dkpt*n3ddim) ].reshape(-1, n3ddim)
+
+                    # print("after nl points_3d:",points_3d.shape)
                 else:
                     assert lb.shape[1] == 5, f'labels require 5 columns, {lb.shape[1]} columns detected'
                     points = lb[:, 1:]
@@ -130,28 +141,37 @@ def verify_image_label(args):
                     f'Possible class labels are 0-{num_cls - 1}'
                 _, i = np.unique(lb, axis=0, return_index=True)
                 if len(i) < nl:  # duplicate row check
+                    print("duplicate row check")
                     lb = lb[i]  # remove duplicates
                     if segments:
                         segments = [segments[x] for x in i]
                     msg = f'{prefix}WARNING ⚠️ {im_file}: {nl - len(i)} duplicate labels removed'
             else:
+                print("label empty ******")
                 ne = 1  # label empty
-                lb = np.zeros((0, (5 + nkpt * ndim + n3dkpt * n3ddim) if keypoint else 5), dtype=np.float32)
+                lb = np.zeros((0, (5 + nkpt * ndim + n3dkpt * n3ddim + nsmplshapeparam*nsmplshapedim) if keypoint else 5), dtype=np.float32)
         else:
             nm = 1  # label missing
-            lb = np.zeros((0, (5 + nkpt * ndim + n3dkpt * n3ddim) if keypoints else 5), dtype=np.float32)
+            lb = np.zeros((0, (5 + nkpt * ndim + n3dkpt * n3ddim + nsmplshapeparam*nsmplshapedim) if keypoints else 5), dtype=np.float32)
             nc = 1
             e = 'txt not found'
             msg = f'{prefix}WARNING ⚠️ {im_file}: ignoring corrupt image/label: {e}'
             return [None, None, None, None, None, None, nm, nf, ne, nc, msg]
         if keypoint:
+
             keypoints = lb[:, 5:(5 + nkpt * ndim)].reshape(-1, nkpt, ndim)
-            keypoints_3d = lb[:, (5 + nkpt * ndim):].reshape(-1, n3dkpt, n3ddim)
+            print("if keypoints.shape:",keypoints.shape)
+            keypoints_3d = lb[:, (5 + nkpt * ndim):(5 + nkpt * ndim + n3dkpt*n3ddim)].reshape(-1, n3dkpt, n3ddim)
+            print("if keypoints_3d.shape:",keypoints_3d.shape)
+            smpl_shape = lb[:, (5 + nkpt * ndim + n3dkpt*n3ddim):(5 + nkpt * ndim + n3dkpt*n3ddim + nsmplshapeparam*nsmplshapedim)].reshape(-1, nsmplshapeparam, nsmplshapedim)
+            print("if smpl_shape.shape:",smpl_shape.shape)
+
             if ndim == 2:
                 kpt_mask = np.where((keypoints[..., 0] < 0) | (keypoints[..., 1] < 0), 0.0, 1.0).astype(np.float32)
                 keypoints = np.concatenate([keypoints, kpt_mask[..., None]], axis=-1)  # (nl, nkpt, 3)
+                print("keypoints.shape:",keypoints.shape)
         lb = lb[:, :5]
-        return im_file, lb, shape, segments, keypoints, keypoints_3d, nm, nf, ne, nc, msg
+        return im_file, lb, shape, segments, keypoints, keypoints_3d, smpl_shape, nm, nf, ne, nc, msg
     except Exception as e:
         nc = 1
         msg = f'{prefix}WARNING ⚠️ {im_file}: ignoring corrupt image/label: {e}'
@@ -473,7 +493,7 @@ class HUBDatasetStats:
 
     def get_json(self, save=False, verbose=False):
         """Return dataset JSON for Ultralytics HUB."""
-
+        print("utils- ----get_json")
         def _round(labels):
             """Update labels to integer class and 4 decimal place floats."""
             if self.task == 'detect':
@@ -481,9 +501,11 @@ class HUBDatasetStats:
             elif self.task == 'segment':
                 coordinates = [x.flatten() for x in labels['segments']]
             elif self.task == 'pose':
+                print("utils- ----get_json--pose")
                 n = labels['keypoints'].shape[0]
                 n_3d = labels['keypoints_3d'].shape[0]
                 coordinates = np.concatenate((labels['bboxes'], labels['keypoints'].reshape(n, -1)), labels['keypoints_3d'].reshape(n_3d, -1), 1)
+                print("                n_3d = labels['keypoints_3d'].shape[0]----")
             else:
                 raise ValueError('Undefined dataset task.')
             zipped = zip(labels['cls'], coordinates)

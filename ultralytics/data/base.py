@@ -175,6 +175,7 @@ class BaseDataset(Dataset):
         """Update labels to include only these classes (optional)."""
         include_class_array = np.array(include_class).reshape(1, -1)
         for i in range(len(self.labels)):
+            print("i:",i)
             if include_class is not None:
                 cls = self.labels[i]['cls']
                 bboxes = self.labels[i]['bboxes']
