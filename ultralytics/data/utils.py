@@ -160,16 +160,16 @@ def verify_image_label(args):
         if keypoint:
 
             keypoints = lb[:, 5:(5 + nkpt * ndim)].reshape(-1, nkpt, ndim)
-            print("if keypoints.shape:",keypoints.shape)
+            # print("if keypoints.shape:",keypoints.shape)
             keypoints_3d = lb[:, (5 + nkpt * ndim):(5 + nkpt * ndim + n3dkpt*n3ddim)].reshape(-1, n3dkpt, n3ddim)
-            print("if keypoints_3d.shape:",keypoints_3d.shape)
+            # print("if keypoints_3d.shape:",keypoints_3d.shape)
             smpl_shape = lb[:, (5 + nkpt * ndim + n3dkpt*n3ddim):(5 + nkpt * ndim + n3dkpt*n3ddim + nsmplshapeparam*nsmplshapedim)].reshape(-1, nsmplshapeparam, nsmplshapedim)
-            print("if smpl_shape.shape:",smpl_shape.shape)
+            # print("if smpl_shape.shape:",smpl_shape.shape)
 
             if ndim == 2:
                 kpt_mask = np.where((keypoints[..., 0] < 0) | (keypoints[..., 1] < 0), 0.0, 1.0).astype(np.float32)
                 keypoints = np.concatenate([keypoints, kpt_mask[..., None]], axis=-1)  # (nl, nkpt, 3)
-                print("keypoints.shape:",keypoints.shape)
+                # print("keypoints.shape:",keypoints.shape)
         lb = lb[:, :5]
         return im_file, lb, shape, segments, keypoints, keypoints_3d, smpl_shape, nm, nf, ne, nc, msg
     except Exception as e:

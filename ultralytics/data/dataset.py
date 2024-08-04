@@ -194,6 +194,7 @@ class YOLODataset(BaseDataset):
         segments = label.pop('segments', [])
         keypoints = label.pop('keypoints', None)
         keypoints_3d = label.pop('keypoints_3d', None)
+        smpl_shape = label.pop('smpl_shape', None)
         bbox_format = label.pop('bbox_format')
         normalized = label.pop('normalized')
 
@@ -205,7 +206,7 @@ class YOLODataset(BaseDataset):
             segments = np.stack(resample_segments(segments, n=segment_resamples), axis=0)
         else:
             segments = np.zeros((0, segment_resamples, 2), dtype=np.float32)
-        label['instances'] = Instances(bboxes, segments, keypoints, keypoints_3d, bbox_format=bbox_format, normalized=normalized)
+        label['instances'] = Instances(bboxes, segments, keypoints, keypoints_3d, smpl_shape, bbox_format=bbox_format, normalized=normalized)
         return label
 
     @staticmethod

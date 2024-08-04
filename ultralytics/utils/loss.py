@@ -439,8 +439,8 @@ class Joint3DLoss(nn.Module):
         # pred_3dkpts = torch.where(pred_3dkpts > 180, pred_3dkpts - 360, pred_3dkpts)
 
 
-        print("class Keypoint3DLoss pred_3dkpts:",pred_3dkpts.shape)
-        print("class Keypoint3DLoss gt_3dkpts:",gt_3dkpts.shape)
+        # print("class Keypoint3DLoss pred_3dkpts:",pred_3dkpts.shape)
+        # print("class Keypoint3DLoss gt_3dkpts:",gt_3dkpts.shape)
 
         d_3d = torch.abs(pred_3dkpts - gt_3dkpts)
         # d_3d = torch.min(d_3d, 360 - d_3d)
@@ -542,7 +542,7 @@ class v8PoseLoss(v8DetectionLoss):
         # loss[5] *= 15  # 3d joint loss gain
         loss[5] *= 15  # 3d pose loss gain (22*3)
         loss[6] *= 15  # 3d shape loss gain (1*10)
-        loss[7] *= 15  # 3d joint loss gain input: pose + shape -> smplx_layer -> (25*3) [0,0,0....]
+        # loss[7] *= 15  # 3d joint loss gain input: pose + shape -> smplx_layer -> (25*3) [0,0,0....]
         # loss[5] *= self.hyp.euler  # 3d joint loss gain
 
         #box=7.5

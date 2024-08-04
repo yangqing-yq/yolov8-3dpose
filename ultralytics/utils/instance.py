@@ -205,7 +205,7 @@ class Instances:
         This class does not perform input validation, and it assumes the inputs are well-formed.
     """
 
-    def __init__(self, bboxes, segments=None, keypoints=None, keypoints_3d=None, bbox_format='xywh', normalized=True) -> None:
+    def __init__(self, bboxes, segments=None, keypoints=None, keypoints_3d=None, smpl_shape=None, bbox_format='xywh', normalized=True) -> None:
         """
         Args:
             bboxes (ndarray): bboxes with shape [N, 4].
@@ -215,6 +215,7 @@ class Instances:
         self._bboxes = Bboxes(bboxes=bboxes, format=bbox_format)
         self.keypoints = keypoints
         self.keypoints_3d = keypoints_3d
+        self.smpl_shape = smpl_shape
         self.normalized = normalized
         self.segments = segments
 
@@ -291,6 +292,7 @@ class Instances:
         segments = self.segments[index] if len(self.segments) else self.segments
         keypoints = self.keypoints[index] if self.keypoints is not None else None
         keypoints_3d = self.keypoints_3d[index] if self.keypoints_3d is not None else None
+        smpl_shape = self.smpl_shape[index] if self.smpl_shape is not None else None
         bboxes = self.bboxes[index]
         bbox_format = self._bboxes.format
         return Instances(
@@ -298,6 +300,7 @@ class Instances:
             segments=segments,
             keypoints=keypoints,
             keypoints_3d=keypoints_3d,
+            smpl_shape=smpl_shape,
             bbox_format=bbox_format,
             normalized=self.normalized,
         )
@@ -361,9 +364,11 @@ class Instances:
                 self.keypoints = self.keypoints[good]
             if self.keypoints_3d is not None:
                 self.keypoints_3d = self.keypoints_3d[good]
+            if self.smpl_shape is not None:
+                self.smpl_shape = self.smpl_shape[good]
         return good
 
-    def update(self, bboxes, segments=None, keypoints=None, keypoints_3d=None):
+    def update(self, bboxes, segments=None, keypoints=None, keypoints_3d=None, smpl_shape=None):
         """Updates instance variables."""
         self._bboxes = Bboxes(bboxes, format=self._bboxes.format)
         if segments is not None:
@@ -372,6 +377,8 @@ class Instances:
             self.keypoints = keypoints
         if keypoints_3d is not None:
             self.keypoints_3d = keypoints_3d
+        if smpl_shape is not None:
+            self.smpl_shape = smpl_shape
 
     def __len__(self):
         """Return the length of the instance list."""
@@ -405,14 +412,17 @@ class Instances:
 
         use_keypoint = instances_list[0].keypoints is not None
         use_3dkeypoint = instances_list[0].keypoints_3d is not None
+        use_smplshape = instances_list[0].smpl_shape is not None 
         bbox_format = instances_list[0]._bboxes.format
         normalized = instances_list[0].normalized
+
 
         cat_boxes = np.concatenate([ins.bboxes for ins in instances_list], axis=axis)
         cat_segments = np.concatenate([b.segments for b in instances_list], axis=axis)
         cat_keypoints = np.concatenate([b.keypoints for b in instances_list], axis=axis) if use_keypoint else None
         cat_3dkeypoints = np.concatenate([b.keypoints_3d for b in instances_list], axis=axis) if use_3dkeypoint else None
-        return cls(cat_boxes, cat_segments, cat_keypoints, cat_3dkeypoints, bbox_format, normalized)
+        cat_smplshape  = np.concatenate([b.smpl_shape for b in instances_list], axis=axis) if use_smplshape else None
+        return cls(cat_boxes, cat_segments, cat_keypoints, cat_3dkeypoints, cat_smplshape, bbox_format, normalized)
 
     @property
     def bboxes(self):
