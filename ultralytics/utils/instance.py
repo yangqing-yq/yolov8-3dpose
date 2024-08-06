@@ -205,7 +205,8 @@ class Instances:
         This class does not perform input validation, and it assumes the inputs are well-formed.
     """
 
-    def __init__(self, bboxes, segments=None, keypoints=None, keypoints_3d=None, smpl_shape=None, bbox_format='xywh', normalized=True) -> None:
+    def __init__(self, bboxes, segments=None, keypoints=None, keypoints_3d=None, smpl_shape=None,\
+                  rhand_pose=None, lhand_pose=None, jaw_pose=None, expr= None, bbox_format='xywh', normalized=True) -> None:
         """
         Args:
             bboxes (ndarray): bboxes with shape [N, 4].
@@ -216,6 +217,10 @@ class Instances:
         self.keypoints = keypoints
         self.keypoints_3d = keypoints_3d
         self.smpl_shape = smpl_shape
+        self.rhand_pose=rhand_pose
+        self.lhand_pose=lhand_pose
+        self.jaw_pose= jaw_pose
+        self.expr= expr
         self.normalized = normalized
         self.segments = segments
 
@@ -293,6 +298,10 @@ class Instances:
         keypoints = self.keypoints[index] if self.keypoints is not None else None
         keypoints_3d = self.keypoints_3d[index] if self.keypoints_3d is not None else None
         smpl_shape = self.smpl_shape[index] if self.smpl_shape is not None else None
+        rhand_pose = self.rhand_pose[index] if self.rhand_pose is not None else None
+        lhand_pose = self.lhand_pose[index] if self.lhand_pose is not None else None
+        jaw_pose = self.jaw_pose[index] if self.jaw_pose is not None else None
+        expr = self.expr[index] if self.expr is not None else None
         bboxes = self.bboxes[index]
         bbox_format = self._bboxes.format
         return Instances(
@@ -301,6 +310,10 @@ class Instances:
             keypoints=keypoints,
             keypoints_3d=keypoints_3d,
             smpl_shape=smpl_shape,
+            rhand_pose=rhand_pose,
+            lhand_pose=lhand_pose,
+            jaw_pose= jaw_pose,
+            expr=expr,
             bbox_format=bbox_format,
             normalized=self.normalized,
         )
@@ -366,9 +379,18 @@ class Instances:
                 self.keypoints_3d = self.keypoints_3d[good]
             if self.smpl_shape is not None:
                 self.smpl_shape = self.smpl_shape[good]
+            if self.rhand_pose is not None:
+                self.rhand_pose = self.rhand_pose[good]
+            if self.lhand_pose is not None:
+                self.lhand_pose = self.lhand_pose[good]
+            if self.jaw_pose is not None:
+                self.jaw_pose = self.jaw_pose[good]
+            if self.expr is not None:
+                self.expr = self.expr[good]
+            
         return good
 
-    def update(self, bboxes, segments=None, keypoints=None, keypoints_3d=None, smpl_shape=None):
+    def update(self, bboxes, segments=None, keypoints=None, keypoints_3d=None, smpl_shape=None, rhand_pose=None, lhand_pose=None, jaw_pose=None, expr=None):
         """Updates instance variables."""
         self._bboxes = Bboxes(bboxes, format=self._bboxes.format)
         if segments is not None:
@@ -379,6 +401,14 @@ class Instances:
             self.keypoints_3d = keypoints_3d
         if smpl_shape is not None:
             self.smpl_shape = smpl_shape
+        if rhand_pose is not None:
+            self.rhand_pose = rhand_pose
+        if lhand_pose is not None:
+            self.lhand_pose = lhand_pose
+        if jaw_pose is not None:
+            self.jaw_pose = jaw_pose
+        if expr is not None:
+            self.expr = expr
 
     def __len__(self):
         """Return the length of the instance list."""
@@ -413,6 +443,10 @@ class Instances:
         use_keypoint = instances_list[0].keypoints is not None
         use_3dkeypoint = instances_list[0].keypoints_3d is not None
         use_smplshape = instances_list[0].smpl_shape is not None 
+        use_rhandpose = instances_list[0].rhand_pose is not None 
+        use_lhandpose = instances_list[0].lhand_pose is not None 
+        use_jawpose = instances_list[0].jaw_pose is not None 
+        use_expr = instances_list[0].expr is not None 
         bbox_format = instances_list[0]._bboxes.format
         normalized = instances_list[0].normalized
 
@@ -422,7 +456,12 @@ class Instances:
         cat_keypoints = np.concatenate([b.keypoints for b in instances_list], axis=axis) if use_keypoint else None
         cat_3dkeypoints = np.concatenate([b.keypoints_3d for b in instances_list], axis=axis) if use_3dkeypoint else None
         cat_smplshape  = np.concatenate([b.smpl_shape for b in instances_list], axis=axis) if use_smplshape else None
-        return cls(cat_boxes, cat_segments, cat_keypoints, cat_3dkeypoints, cat_smplshape, bbox_format, normalized)
+        cat_rhandpose  = np.concatenate([b.rhand_pose for b in instances_list], axis=axis) if use_rhandpose else None
+        cat_lhandpose  = np.concatenate([b.lhand_pose for b in instances_list], axis=axis) if use_lhandpose else None
+        cat_jawpose  = np.concatenate([b.jaw_pose for b in instances_list], axis=axis) if use_jawpose else None
+        cat_expr  = np.concatenate([b.expr for b in instances_list], axis=axis) if use_expr else None
+        return cls(cat_boxes, cat_segments, cat_keypoints, cat_3dkeypoints, cat_smplshape, cat_rhandpose, \
+                   cat_lhandpose, cat_jawpose, cat_expr,  bbox_format, normalized)
 
     @property
     def bboxes(self):

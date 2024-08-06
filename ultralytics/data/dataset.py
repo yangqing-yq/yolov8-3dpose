@@ -56,23 +56,29 @@ class YOLODataset(BaseDataset):
         desc = f'{self.prefix}Scanning {path.parent / path.stem}...'
         total = len(self.im_files)
         nkpt, ndim = self.data.get('kpt_shape', (0, 0))
-        n3dkpt, n3ddim = self.data.get('kpt_3dshape', (0, 0))
-        nsmplshapeparam, nsmpleshapedim = self.data.get('smpl_shape', (0, 0))
+        n3dkpt, n3ddim = self.data.get('body_pose_shape', (0, 0))
+        nbshapeparam, nbshapedim = self.data.get('smpl_shape_shape', (0, 0))
+        nrhandkpt, nrhanddim = self.data.get('rhand_pose_shape', (0, 0))
+        nlhandkpt, nlhanddim = self.data.get('lhand_pose_shape', (0, 0))
+        njawparam, njawdim = self.data.get('jaw_pose_shape', (0, 0))
+        nexprparam, nexprdim = self.data.get('expr_shape', (0, 0))
 
         if self.use_keypoints and (nkpt <= 0 or ndim not in (2, 3)):
             raise ValueError("'kpt_shape' in data.yaml missing or incorrect. Should be a list with [number of "
                              "keypoints, number of dims (2 for x,y or 3 for x,y,visible)], i.e. 'kpt_shape: [17, 3]'")
         # print("self.im_files, self.label_files:",self.im_files, self.label_files)
-        # print("nkpt, ndim,n3dkpt, n3ddim,nsmplshapeparam, nsmpleshapedim:",nkpt, ndim,n3dkpt, n3ddim,nsmplshapeparam, nsmpleshapedim)
+        # print("nkpt, ndim,n3dkpt, n3ddim,nbshapeparam, nsmpleshapedim:",nkpt, ndim,n3dkpt, n3ddim,nbshapeparam, nsmpleshapedim)
         with ThreadPool(NUM_THREADS) as pool:
             results = pool.imap(func=verify_image_label,
                                 iterable=zip(self.im_files, self.label_files, repeat(self.prefix),
                                              repeat(self.use_keypoints), repeat(len(self.data['names'])), 
                                              repeat(nkpt), repeat(ndim), repeat(n3dkpt), repeat(n3ddim),
-                                             repeat(nsmplshapeparam),repeat(nsmpleshapedim)))
+                                             repeat(nbshapeparam),repeat(nbshapedim),repeat(nrhandkpt),
+                                             repeat(nrhanddim),repeat(nlhandkpt),repeat(nlhanddim),repeat(njawparam),
+                                             repeat(njawdim),repeat(nexprparam),repeat(nexprdim)))
             # print("results:",results)
             pbar = TQDM(results, desc=desc, total=total)
-            for im_file, lb, shape, segments, keypoint, keypoint_3d, smpl_shape, nm_f, nf_f, ne_f, nc_f, msg in pbar:
+            for im_file, lb, shape, segments, keypoint, keypoint_3d, smpl_shape, rhand_pose, lhand_pose, jaw_pose, expr, nm_f, nf_f, ne_f, nc_f, msg in pbar:
                 # print("im_file, lb, shape, segments, keypoint, keypoint_3d, nm_f, nf_f, ne_f, nc_f, msg:",im_file, lb, shape, segments, keypoint, keypoint_3d, nm_f, nf_f, ne_f, nc_f, msg)
                 nm += nm_f
                 nf += nf_f
@@ -89,6 +95,10 @@ class YOLODataset(BaseDataset):
                             keypoints=keypoint,
                             keypoints_3d=keypoint_3d,
                             smpl_shape=smpl_shape,
+                            rhand_pose=rhand_pose,
+                            lhand_pose=lhand_pose,
+                            jaw_pose=jaw_pose,
+                            expr=expr,
                             normalized=True,
                             bbox_format='xywh'))
                 if msg:
@@ -138,7 +148,7 @@ class YOLODataset(BaseDataset):
         [cache.pop(k) for k in ('hash', 'version', 'msgs')]  # remove items
 
         labels = cache['labels']
-        print("labels:",len(labels))
+        # print("labels:",len(labels))
         if not labels:
             LOGGER.warning(f'WARNING ⚠️ No images found in {cache_path}, training may not work correctly. {HELP_URL}')
         self.im_files = [lb['im_file'] for lb in labels]  # update im_files
@@ -195,6 +205,10 @@ class YOLODataset(BaseDataset):
         keypoints = label.pop('keypoints', None)
         keypoints_3d = label.pop('keypoints_3d', None)
         smpl_shape = label.pop('smpl_shape', None)
+        rhand_pose = label.pop('rhand_pose', None)
+        lhand_pose = label.pop('lhand_pose', None)
+        jaw_pose = label.pop('jaw_pose', None)
+        expr = label.pop('expr', None)
         bbox_format = label.pop('bbox_format')
         normalized = label.pop('normalized')
 
@@ -206,7 +220,8 @@ class YOLODataset(BaseDataset):
             segments = np.stack(resample_segments(segments, n=segment_resamples), axis=0)
         else:
             segments = np.zeros((0, segment_resamples, 2), dtype=np.float32)
-        label['instances'] = Instances(bboxes, segments, keypoints, keypoints_3d, smpl_shape, bbox_format=bbox_format, normalized=normalized)
+        label['instances'] = Instances(bboxes, segments, keypoints, keypoints_3d, smpl_shape, \
+                                       rhand_pose, lhand_pose, jaw_pose, expr, bbox_format=bbox_format, normalized=normalized)
         return label
 
     @staticmethod

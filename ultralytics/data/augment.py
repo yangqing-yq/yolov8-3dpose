@@ -1006,14 +1006,14 @@ def v8_transforms(dataset, imgsz, hyp, stretch=False):
     flip_3didx = dataset.data.get('flip_3didx', [])  # for 3d keypoints augmentation
     if dataset.use_keypoints:
         kpt_shape = dataset.data.get('kpt_shape', None)
-        kpt_3dshape = dataset.data.get('kpt_3dshape', None)
+        body_pose_shape = dataset.data.get('body_pose_shape', None)
         if len(flip_idx) == 0 and hyp.fliplr > 0.0:
             hyp.fliplr = 0.0
             LOGGER.warning("WARNING ⚠️ No 'flip_idx' array defined in data.yaml, setting augmentation 'fliplr=0.0'")
         elif flip_idx and (len(flip_idx) != kpt_shape[0]):
             raise ValueError(f'data.yaml flip_idx={flip_idx} length must be equal to kpt_shape[0]={kpt_shape[0]}')
-        elif flip_3didx and (len(flip_3didx) != kpt_3dshape[0]):
-            raise ValueError(f'data.yaml flip_3didx={flip_3didx} length must be equal to kpt_3dshape[0]={kpt_3dshape[0]}')
+        elif flip_3didx and (len(flip_3didx) != body_pose_shape[0]):
+            raise ValueError(f'data.yaml flip_3didx={flip_3didx} length must be equal to kpt_3dshape[0]={body_pose_shape[0]}')
 
     return Compose([
         pre_transform,

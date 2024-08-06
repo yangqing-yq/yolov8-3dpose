@@ -65,10 +65,10 @@ class PoseValidator(DetectionValidator):
         """Initiate pose estimation metrics for YOLO model."""
         super().init_metrics(model)
         self.kpt_shape = self.data['kpt_shape']
-        self.kpt_3dshape = self.data['kpt_3dshape']
+        self.body_pose_shape = self.data['body_pose_shape']
         is_pose = self.kpt_shape == [17, 3]
         nkpt = self.kpt_shape[0]
-        n3dkpt = self.kpt_3dshape[0]
+        n3dkpt = self.body_pose_shape[0]
         self.sigma = OKS_SIGMA if is_pose else np.ones(nkpt) / nkpt
         self.sigma_3d = np.ones(n3dkpt) / n3dkpt
         self.stats = dict(tp_p=[], tp=[], conf=[], pred_cls=[], target_cls=[])

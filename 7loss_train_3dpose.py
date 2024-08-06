@@ -6,7 +6,7 @@ from ultralytics import YOLO
 
 
 root_dir = os.path.dirname(os.path.dirname(__file__))
-data_conf = os.path.join(root_dir, 'config', 'data_whole_det_37kpts_22euler.yaml')
+data_conf = os.path.join(root_dir, 'config', 'data_whole_ubody.yaml')
 
 weight_dir = ('/dc/yolo3dpose/weights/')
 

@@ -90,8 +90,6 @@ def load_3d_info(anno_3D_path):
                         "lhand_pose":lhand_pose,
                         "jaw_pose":jaw_pose,
                         "expr":expr,
-                        # "lhand_pose": lhand_pose,
-                        # "rhand_pose": rhand_pose
             }
 
     return results
