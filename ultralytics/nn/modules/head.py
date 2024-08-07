@@ -144,14 +144,18 @@ class OBB(Detect):
 class Pose(Detect):
     """YOLOv8 Pose head for keypoints models."""
 
-    def __init__(self, nc=80, kpt_shape=(17, 3), kpt_3dshape=(22, 3), ch=()):
+    def __init__(self, nc=80, kpt_shape=(17, 3), body_pose_shape=(22, 3), ch=()):
         """Initialize YOLO network with default parameters and Convolutional Layers."""
         super().__init__(nc, ch)
         # Sifan modify here
+
+        print("1body_pose_shape:",body_pose_shape)
         self.kpt_shape = kpt_shape  # number of keypoints, number of dims (2 for x,y or 3 for x,y,visible)
-        self.kpt_3dshape = kpt_3dshape  # number of keypoints, number of dims (2 for x,y or 3 for x,y,visible)
+        self.body_pose_shape = body_pose_shape  # number of keypoints, number of dims (2 for x,y or 3 for x,y,visible)
+        print("kpt_shape:",kpt_shape)
         self.nk = kpt_shape[0] * kpt_shape[1]  # number of keypoints total
-        self.n3dk = kpt_3dshape[0] * kpt_3dshape[1]  # number of keypoints total
+        print("body_pose_shape:",body_pose_shape)
+        self.n3dk = body_pose_shape[0] * body_pose_shape[1]  # number of keypoints total
         self.nk_total = self.nk + self.n3dk
         self.detect = Detect.forward
 

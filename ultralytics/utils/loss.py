@@ -464,7 +464,7 @@ class v8PoseLoss(v8DetectionLoss):
         sigmas = torch.from_numpy(OKS_SIGMA).to(self.device) if is_pose else torch.ones(nkpt , device=self.device) / nkpt
         self.keypoint_loss = KeypointLoss(sigmas=sigmas)
 
-        self.kpt_3dshape = model.model[-1].kpt_3dshape
+        self.kpt_3dshape = model.model[-1].body_pose_shape
         n3dkpt = self.kpt_3dshape[0]  # number of keypoints
         sigmas_3d = torch.ones(n3dkpt , device=self.device) / n3dkpt
         self.keypoint_3dloss = Keypoint3DLoss(sigmas_3d=sigmas_3d)

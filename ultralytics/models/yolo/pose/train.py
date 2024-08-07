@@ -26,6 +26,7 @@ class PoseTrainer(yolo.detect.DetectionTrainer):
         """Initialize a PoseTrainer object with specified configurations and overrides."""
         if overrides is None:
             overrides = {}
+        print("trian.py init")
         overrides['task'] = 'pose'
         super().__init__(cfg, overrides, _callbacks)
 
@@ -35,7 +36,8 @@ class PoseTrainer(yolo.detect.DetectionTrainer):
 
     def get_model(self, cfg=None, weights=None, verbose=True):
         """Get pose estimation model with specified configuration and weights."""
-        model = PoseModel(cfg, ch=3, nc=self.data['nc'], data_kpt_shape=self.data['kpt_shape'], data_kpt_3dshape=self.data['body_pose_shape'], verbose=verbose)
+        # print("data_kpt_shape=self.data['kpt_shape'], data_body_pose_shape=self.data['body_pose_shape']:",data_kpt_shape=self.data['kpt_shape'], data_body_pose_shape=self.data['body_pose_shape'])
+        model = PoseModel(cfg, ch=3, nc=self.data['nc'], data_kpt_shape=self.data['kpt_shape'], data_body_pose_shape=self.data['body_pose_shape'], verbose=verbose)
         if weights:
             model.load(weights)
 
@@ -44,8 +46,9 @@ class PoseTrainer(yolo.detect.DetectionTrainer):
     def set_model_attributes(self):
         """Sets keypoints shape attribute of PoseModel."""
         super().set_model_attributes()
+        print("eeeeeeeeeeeeww")
         self.model.kpt_shape = self.data['kpt_shape']
-        self.model.kpt_3dshape = self.data['body_pose_shape']
+        self.model.body_pose_shape = self.data['body_pose_shape']
 
     def get_validator(self):
         """Returns an instance of the PoseValidator class for validation."""

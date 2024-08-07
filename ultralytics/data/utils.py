@@ -85,7 +85,8 @@ def verify_image(args):
 
 def verify_image_label(args):
     """Verify one image-label pair."""
-    im_file, lb_file, prefix, keypoint, num_cls, nkpt, ndim, n3dkpt, n3ddim, nsmplshapeparam, nsmplshapedim= args
+    im_file, lb_file, prefix, keypoint, num_cls, nkpt, ndim, n3dkpt, n3ddim, nbshapeparam, nbshapedim, \
+        nrhandkpt,nrhanddim,nlhandkpt,nlhanddim,njawparam,njawdim,nexprparam,nexprdim= args
     # Number (missing, found, empty, corrupt), message, segments, keypoints
     nm, nf, ne, nc, msg, segments, keypoints = 0, 0, 0, 0, '', [], None
     try:
@@ -121,7 +122,7 @@ def verify_image_label(args):
                 if keypoint:
                     # print("lb.shape[1]:",lb.shape[1]) # 192
                     # print("nsmplshapeparam,nsmplshapedim :",nsmplshapeparam,nsmplshapedim )
-                    assert lb.shape[1] == (5 + nkpt * ndim + n3dkpt * n3ddim + nsmplshapeparam*nsmplshapedim ), f'labels require {(5 + nkpt * ndim + n3dkpt * n3ddim + nsmplshapeparam*nsmplshapedim )} columns each'
+                    assert lb.shape[1] == (5 + nkpt * ndim + n3dkpt * n3ddim + nbshapeparam*nbshapedim ), f'labels require {(5 + nkpt * ndim + n3dkpt * n3ddim + nbshapeparam*nbshapedim )} columns each'
                     points = lb[:, 5:(5 + nkpt * ndim)].reshape(-1, ndim)[:, :2]
                     # print("nl points:",points.shape)
                     # print("before points_3d:]:",lb[:, (5 + nkpt * ndim):].shape)
@@ -149,10 +150,10 @@ def verify_image_label(args):
             else:
                 print("label empty ******")
                 ne = 1  # label empty
-                lb = np.zeros((0, (5 + nkpt * ndim + n3dkpt * n3ddim + nsmplshapeparam*nsmplshapedim) if keypoint else 5), dtype=np.float32)
+                lb = np.zeros((0, (5 + nkpt * ndim + n3dkpt * n3ddim + nbshapeparam*nbshapedim) if keypoint else 5), dtype=np.float32)
         else:
             nm = 1  # label missing
-            lb = np.zeros((0, (5 + nkpt * ndim + n3dkpt * n3ddim + nsmplshapeparam*nsmplshapedim) if keypoints else 5), dtype=np.float32)
+            lb = np.zeros((0, (5 + nkpt * ndim + n3dkpt * n3ddim + nbshapeparam*nbshapedim) if keypoints else 5), dtype=np.float32)
             nc = 1
             e = 'txt not found'
             msg = f'{prefix}WARNING ⚠️ {im_file}: ignoring corrupt image/label: {e}'
@@ -163,7 +164,8 @@ def verify_image_label(args):
             # print("if keypoints.shape:",keypoints.shape)
             keypoints_3d = lb[:, (5 + nkpt * ndim):(5 + nkpt * ndim + n3dkpt*n3ddim)].reshape(-1, n3dkpt, n3ddim)
             # print("if keypoints_3d.shape:",keypoints_3d.shape)
-            smpl_shape = lb[:, (5 + nkpt * ndim + n3dkpt*n3ddim):(5 + nkpt * ndim + n3dkpt*n3ddim + nsmplshapeparam*nsmplshapedim)].reshape(-1, nsmplshapeparam, nsmplshapedim)
+            smpl_shape = lb[:, (5 + nkpt * ndim + n3dkpt*n3ddim):(5 + nkpt * ndim + n3dkpt*n3ddim + nbshapeparam*nbshapedim)].reshape(-1, nbshapeparam, nbshapedim)
+
             # print("if smpl_shape.shape:",smpl_shape.shape)
 
             if ndim == 2:

@@ -31,7 +31,7 @@ class PoseValidator(DetectionValidator):
         super().__init__(dataloader, save_dir, pbar, args, _callbacks)
         self.sigma = None
         self.kpt_shape = None
-        self.kpt_3dshape = None
+        self.body_pose_shape = None
         self.args.task = 'pose'
         self.metrics = PoseMetrics(save_dir=self.save_dir, on_plot=self.on_plot)
         if isinstance(self.args.device, str) and self.args.device.lower() == 'mps':
