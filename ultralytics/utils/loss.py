@@ -520,14 +520,14 @@ class v8PoseLoss(v8DetectionLoss):
 
         # Pboxes
         pred_bboxes = self.bbox_decode(anchor_points, pred_distri)  # xyxy, (b, h*w, 4)
-        print("pred_bboxes:",pred_bboxes.shape) # (2,8400,4)  on 8.24
+        print("utils/loss pred_bboxes:",pred_bboxes.shape) # (2,8400,4)  on 8.24
 
         pred_kpts = self.kpts_decode(anchor_points, pred_kpts.view(batch_size, -1, *self.kpt_shape))  # (b, h*w, 37, 3)
-        print("pred_kpts:",pred_kpts.shape) #torch.Size([2, 8400, 37, 3])
+        print("utils/loss_pred_kpts:",pred_kpts.shape) #torch.Size([2, 8400, 37, 3])
 
-        print("pred_3dkpts1:",pred_3dkpts.shape) #torch.Size([128, 8400, 66])
+        print("utils/loss pred_3dkpts1:",pred_3dkpts.shape) #torch.Size([128, 8400, 66])
         pred_3dkpts = pred_3dkpts.view(batch_size, -1, *self.kpt_3dshape)  # (b, h*w, 22, 3) ###shape '[2, -1, 22, 3]' is invalid for input of size 1276800
-        print("pred_3dkpts2:",pred_3dkpts.shape) #torch.Size([128, 8400, 22, 3])
+        print("utils/loss pred_3dkpts2:",pred_3dkpts.shape) #torch.Size([128, 8400, 22, 3])
 
         _, target_bboxes, target_scores, fg_mask, target_gt_idx = self.assigner(
             pred_scores.detach().sigmoid(), (pred_bboxes.detach() * stride_tensor).type(gt_bboxes.dtype),
@@ -551,14 +551,16 @@ class v8PoseLoss(v8DetectionLoss):
 
             loss[1], loss[2] = self.calculate_keypoints_loss(fg_mask, target_gt_idx, keypoints, batch_idx,
                                                              stride_tensor, target_bboxes, pred_kpts)
-            keypoints_3d = batch['keypoints_3d'].to(self.device).float().clone()
-            print("loss/batch['keypoints_3d']:",keypoints_3d.shape)
+            target_keypoints_3d = batch['keypoints_3d'].to(self.device).float().clone()
+            target_smpl_shape = batch['smpl_shape'].to(self.device).float().clone()
+            print("loss/target_keypoints_3d:",target_keypoints_3d.shape)
             print("loss/target_gt_idx:",target_gt_idx.shape)
+            print("loss/target_smpl_shape:",target_smpl_shape.shape)
             # print("batch_idx:",batch_idx.shape)
-            # print("pred_3dkpts:",pred_3dkpts.shape)
-            loss[5] = self.calculate_3dkeypoints_loss(fg_mask, target_gt_idx, keypoints_3d, batch_idx, pred_3dkpts)
+            print("loss/pred_3dkpts:",pred_3dkpts.shape)
+            loss[5] = self.calculate_3dkeypoints_loss(fg_mask, target_gt_idx, target_keypoints_3d, batch_idx, pred_3dkpts)
             # loss[6] = self.smplshape_loss(fg_mask, target_gt_idx, batch_idx, pred_smplshape)
-            loss[6] = (pred_smplshape - target_smplshape)**2
+            loss[6] = (pred_smplshape - target_smpl_shape)**2
 
         loss[0] *= self.hyp.box  # box gain
         loss[1] *= self.hyp.pose  # pose gain
@@ -612,6 +614,10 @@ class v8PoseLoss(v8DetectionLoss):
                 - kpts_loss (torch.Tensor): The keypoints loss.
                 - kpts_obj_loss (torch.Tensor): The keypoints object loss.
         """
+
+        # print("keypoints:",keypoints.shape)
+        # print("pred_kpts:",pred_kpts.shape)
+
         batch_idx = batch_idx.flatten()
         batch_size = len(masks)
 
@@ -655,9 +661,17 @@ class v8PoseLoss(v8DetectionLoss):
 
 
     def calculate_3dkeypoints_loss(self, masks, target_gt_idx, keypoints_3d, batch_idx, pred_3dkpts):
+        #mapping to same shape
+        
+        print("keypoints_3d:",keypoints_3d.shape)
+        print("pred_3dkpts:",pred_3dkpts.shape)
+
+        #keypoints_3d: torch.Size([21, 22, 3])
+        #pred_3dkpts: torch.Size([2, 8400, 22, 3])
+
         batch_idx = batch_idx.flatten()
         batch_size = len(masks)
-        # print("masks:",masks.shape) #torch.Size([128, 8400])
+        print("masks:",masks.shape) #torch.Size([128, 8400])
         # print("batch_idx:",batch_idx.shape) #tensor([  0.,   0.,   0.,  ..., 127., 127., 127.])  torch.Size([1162]) dynamic value
         # print("batch_size:",batch_size) #128
  
@@ -668,14 +682,16 @@ class v8PoseLoss(v8DetectionLoss):
         # Create a tensor to hold batched 3d angles
         batched_3dkeypoints = torch.zeros((batch_size, max_3dkpts, keypoints_3d.shape[1], keypoints_3d.shape[2]),
                                    device=keypoints_3d.device)
-
+        print("batched_3dkeypoints:",batched_3dkeypoints.shape) 
         # Fill batched_3dangles with 3d angles based on batch_idx
         for i in range(batch_size):
             keypoints_3di = keypoints_3d[batch_idx == i]
             batched_3dkeypoints[i, :keypoints_3di.shape[0]] = keypoints_3di
 
         # Expand dimensions of target_gt_idx to match the shape of batched_3dangles
+        print("before target_gt_idx:",target_gt_idx.shape) 
         target_gt_idx_expanded = target_gt_idx.unsqueeze(-1).unsqueeze(-1)
+        print("after expandtarget_gt_idx_expanded:",target_gt_idx_expanded.shape) 
 
         # Use target_gt_idx_expanded to select 3d angles from batched_3dangles
         selected_3dkeypoints = batched_3dkeypoints.gather(
@@ -684,9 +700,14 @@ class v8PoseLoss(v8DetectionLoss):
 
         kpts_3dloss = 0
 
+
         if masks.any():
             gt_3dkpt = selected_3dkeypoints[masks]
             pred_3dkpt = pred_3dkpts[masks]
+
+            print("gt_3dkpt:",gt_3dkpt.shape)
+            print("pred_3dkpt:",pred_3dkpt.shape)
+
             # print("pred_3dkpt:",pred_3dkpt.shape)
             # print("masks:",masks) #torch.Size([128, 8400]) True/False grid
             kpt_3dmask = torch.any(gt_3dkpt != 0, dim=-1) if gt_3dkpt.shape[-1] == 3 else torch.full_like(gt_3dkpt[..., 0], True)

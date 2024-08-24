@@ -89,7 +89,7 @@ class Results(SimpleClass):
         _keys (tuple): A tuple of attribute names for non-empty attributes.
     """
 
-    def __init__(self, orig_img, path, names, boxes=None, masks=None, probs=None, keypoints=None, keypoints_3d=None, obb=None) -> None:
+    def __init__(self, orig_img, path, names, boxes=None, masks=None, probs=None, keypoints=None, keypoints_3d=None,smpl_shape=None, obb=None) -> None:
         """Initialize the Results class."""
         self.orig_img = orig_img
         self.orig_shape = orig_img.shape[:2]
@@ -98,12 +98,13 @@ class Results(SimpleClass):
         self.probs = Probs(probs) if probs is not None else None
         self.keypoints = Keypoints(keypoints, self.orig_shape) if keypoints is not None else None
         self.keypoints_3d = keypoints_3d if keypoints_3d is not None else None
+        self.smpl_shape = smpl_shape if smpl_shape is not None else None
         self.obb = OBB(obb, self.orig_shape) if obb is not None else None
         self.speed = {'preprocess': None, 'inference': None, 'postprocess': None}  # milliseconds per image
         self.names = names
         self.path = path
         self.save_dir = None
-        self._keys = 'boxes', 'masks', 'probs', 'keypoints', 'keypoints_3d', 'obb'
+        self._keys = 'boxes', 'masks', 'probs', 'keypoints', 'keypoints_3d', 'smpl_shape', 'obb'
 
     def __getitem__(self, idx):
         """Return a Results object for the specified index."""
@@ -291,6 +292,7 @@ class Results(SimpleClass):
         probs = self.probs
         kpts = self.keypoints
         kpts_3d = self.keypoints_3d
+        smpl_shape = self.smpl_shape
         texts = []
         if probs is not None:
             # Classify
@@ -308,6 +310,8 @@ class Results(SimpleClass):
                     line += (*kpt.reshape(-1).tolist(), )
                 if kpts_3d is not None:
                     line += (*kpts_3d.reshape(-1).tolist(), )
+                if smpl_shape is not None:
+                    line += (*smpl_shape.reshape(-1).tolist(), )
                 line += (conf, ) * save_conf + (() if id is None else (id, ))
                 texts.append(('%g ' * len(line)).rstrip() % line)
 
@@ -362,6 +366,9 @@ class Results(SimpleClass):
             if self.keypoints_3d is not None:
                 x, y, z = self.keypoints_3d[i].data[0].cpu().unbind(dim=1)  # torch Tensor
                 result['keypoints_3d'] = {'x': x.tolist(), 'y': y.tolist(), 'z': z.tolist()}
+            if self.smpl_shape is not None:
+                x = self.smpl_shape[i].data[0].cpu().unbind(dim=1)  # torch Tensor
+                result['smpl_shape'] = {'x': x.tolist()}
             results.append(result)
 
         # Convert detections to JSON

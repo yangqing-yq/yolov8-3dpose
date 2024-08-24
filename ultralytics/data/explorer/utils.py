@@ -46,9 +46,11 @@ def sanitize_batch(batch, dataset_info):
     batch['labels'] = [dataset_info['names'][i] for i in batch['cls']]
     batch['masks'] = batch['masks'].tolist() if 'masks' in batch else [[[]]]
     batch['keypoints'] = batch['keypoints'].tolist() if 'keypoints' in batch else [[[]]]
+    print("explorer-batch['keypoints']:",batch['keypoints'])
     batch['keypoints_3d'] = batch['keypoints_3d'].tolist() if 'keypoints_3d' in batch else [[[]]]
+    print("explorer-batch['keypoints-3d']:",batch['keypoints_3d'])
     batch['smpl_shape'] = batch['smpl_shape'].tolist() if 'smpl_shape' in batch else [[[]]]
-
+    print("explorer-batch['smpl_shape'] ']:",batch['smpl_shape'] )
 
     return batch
 
@@ -68,6 +70,7 @@ def plot_similar_images(similar_set, plot_labels=True):
     bboxes = similar_set.get('bboxes', []) if similar_set.get('bboxes') is not empty_boxes else []
     masks = similar_set.get('masks') if similar_set.get('masks')[0] != empty_masks else []
     kpts = similar_set.get('keypoints') if similar_set.get('keypoints')[0] != empty_masks else []
+    print("***explorer-plot_similar_images")
     kpts_3d = similar_set.get('keypoints_3d') if similar_set.get('keypoints_3d')[0] != empty_masks else []
     smpl_shape = similar_set.get('smpl_shape') if similar_set.get('smpl_shape')[0] != empty_masks else []
     cls = similar_set.get('cls', [])

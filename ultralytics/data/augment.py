@@ -561,6 +561,7 @@ class RandomPerspective:
         segments = instances.segments
         keypoints = instances.keypoints
         keypoints_3d = instances.keypoints_3d
+        smpl_shape=instances.smpl_shape
         # Update bboxes if there are segments.
         if len(segments):
             bboxes, segments = self.apply_segments(segments, M)
@@ -569,7 +570,7 @@ class RandomPerspective:
             keypoints = self.apply_keypoints(keypoints, M)
         if keypoints_3d is not None:
             keypoints_3d = self.apply_3dkeypoints(keypoints_3d, M_3D)
-        new_instances = Instances(bboxes, segments, keypoints, keypoints_3d, bbox_format='xyxy', normalized=False)
+        new_instances = Instances(bboxes, segments, keypoints, keypoints_3d, smpl_shape, bbox_format='xyxy', normalized=False)
         # Clip
         new_instances.clip(*self.size)
 
@@ -941,6 +942,7 @@ class Format:
         instances = labels.pop('instances')
         instances.convert_bbox(format=self.bbox_format)
         instances.denormalize(w, h)
+        # print("***instance:",instances)
         nl = len(instances)
 
         if self.return_mask:
@@ -959,6 +961,7 @@ class Format:
         if self.return_keypoint:
             labels['keypoints'] = torch.from_numpy(instances.keypoints)
             labels['keypoints_3d'] = torch.from_numpy(instances.keypoints_3d)
+            labels['smpl_shape'] = torch.from_numpy(instances.smpl_shape)
         if self.return_obb:
             labels['bboxes'] = xyxyxyxy2xywhr(torch.from_numpy(instances.segments)) if len(
                 instances.segments) else torch.zeros((0, 5))
