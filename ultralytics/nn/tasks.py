@@ -338,18 +338,17 @@ class PoseModel(DetectionModel):
         if any(data_kpt_shape) and list(data_kpt_shape) != list(cfg['kpt_shape']):
             LOGGER.info(f"Overriding model.yaml kpt_shape={cfg['kpt_shape']} with kpt_shape={data_kpt_shape}")
             cfg['kpt_shape'] = data_kpt_shape
-            print("eeeeeeeeeeee")
 
         if any(data_body_pose_shape) and list(data_body_pose_shape) != list(cfg['body_pose_shape']):
             LOGGER.info(f"Overriding model.yaml kpt_3dshape={cfg['body_pose_shape']} with kpt_3dshape={data_body_pose_shape}")
             cfg['body_pose_shape'] = data_body_pose_shape
-            print("data_kpt_3dshape:",cfg['body_pose_shape'] ,data_body_pose_shape)
+            print("nntasks/data_kpt_3dshape:",cfg['body_pose_shape'] ,data_body_pose_shape)
 
 
         if any(data_smpl_shape_shape) and list(data_smpl_shape_shape) != list(cfg['smpl_shape_shape']):
             LOGGER.info(f"Overriding model.yaml kpt_3dshape={cfg['smpl_shape_shape']} with kpt_3dshape={data_smpl_shape_shape}")
             cfg['smpl_shape_shape'] = data_smpl_shape_shape
-            print("data_smpl_shape_shape:",cfg['smpl_shape_shape'] ,data_smpl_shape_shape)
+            print("nntasks/data_smpl_shape_shape:",cfg['smpl_shape_shape'] ,data_smpl_shape_shape)
 
         # print("tasks, data_body_pose_shape:",data_body_pose_shape)
         # print("tasks, data_kpt_shape:",data_kpt_shape)

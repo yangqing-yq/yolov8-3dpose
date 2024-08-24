@@ -19,6 +19,8 @@ def get_table_schema(vector_size):
         masks: List[List[List[int]]]
         keypoints: List[List[List[float]]]
         keypoints_3d: List[List[List[float]]]
+        smpl_shape: List[List[List[float]]]
+
         vector: Vector(vector_size)
 
     return Schema
@@ -45,6 +47,8 @@ def sanitize_batch(batch, dataset_info):
     batch['masks'] = batch['masks'].tolist() if 'masks' in batch else [[[]]]
     batch['keypoints'] = batch['keypoints'].tolist() if 'keypoints' in batch else [[[]]]
     batch['keypoints_3d'] = batch['keypoints_3d'].tolist() if 'keypoints_3d' in batch else [[[]]]
+    batch['smpl_shape'] = batch['smpl_shape'].tolist() if 'smpl_shape' in batch else [[[]]]
+
 
     return batch
 
@@ -65,6 +69,7 @@ def plot_similar_images(similar_set, plot_labels=True):
     masks = similar_set.get('masks') if similar_set.get('masks')[0] != empty_masks else []
     kpts = similar_set.get('keypoints') if similar_set.get('keypoints')[0] != empty_masks else []
     kpts_3d = similar_set.get('keypoints_3d') if similar_set.get('keypoints_3d')[0] != empty_masks else []
+    smpl_shape = similar_set.get('smpl_shape') if similar_set.get('smpl_shape')[0] != empty_masks else []
     cls = similar_set.get('cls', [])
 
     plot_size = 640

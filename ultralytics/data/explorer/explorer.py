@@ -114,9 +114,10 @@ class Explorer:
             self._yield_batches(dataset,
                                 data_info,
                                 self.model,
-                                exclude_keys=['img', 'ratio_pad', 'resized_shape', 'ori_shape', 'batch_idx']))
+                                exclude_keys=['img', 'ratio_pad', 'resized_shape', 'ori_shape', 'batch_idx', 'gaga']))
 
         self.table = table
+        print("self.table :",self.table )
 
     def _yield_batches(self, dataset, data_info, model, exclude_keys: List):
         # Implement Batching

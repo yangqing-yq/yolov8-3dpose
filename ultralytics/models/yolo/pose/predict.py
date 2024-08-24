@@ -33,7 +33,7 @@ class PosePredictor(DetectionPredictor):
 
     def load_euler_distribution(self):
         current_working_directory = os.getcwd()
-        file_path = os.path.join(current_working_directory, 'config', 'euler_distribution.json')
+        file_path = os.path.join(current_working_directory, 'config','logs', 'euler_distribution.json')
         with open(file_path, 'r') as f:
             euler_distribution = json.load(f)
         return euler_distribution

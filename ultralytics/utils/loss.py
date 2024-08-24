@@ -504,9 +504,9 @@ class v8PoseLoss(v8DetectionLoss):
 
         dtype = pred_scores.dtype
         imgsz = torch.tensor(feats[0].shape[2:], device=self.device, dtype=dtype) * self.stride[0]  # image size (h,w)
-        print("imgsz:",imgsz)
+        print("nnlossimgsz:",imgsz)
         anchor_points, stride_tensor = make_anchors(feats, self.stride, 0.5)
-        print("anchor_points:",anchor_points)
+        print("nnlos/anchor_points:",anchor_points.shape)#1.5~19.5
 
         # Targets
         print("batch:",batch.keys())
@@ -552,8 +552,8 @@ class v8PoseLoss(v8DetectionLoss):
             loss[1], loss[2] = self.calculate_keypoints_loss(fg_mask, target_gt_idx, keypoints, batch_idx,
                                                              stride_tensor, target_bboxes, pred_kpts)
             keypoints_3d = batch['keypoints_3d'].to(self.device).float().clone()
-            # print("keypoints_3d:",keypoints_3d.shape)
-            # print("target_gt_idx:",target_gt_idx.shape)
+            print("loss/batch['keypoints_3d']:",keypoints_3d.shape)
+            print("loss/target_gt_idx:",target_gt_idx.shape)
             # print("batch_idx:",batch_idx.shape)
             # print("pred_3dkpts:",pred_3dkpts.shape)
             loss[5] = self.calculate_3dkeypoints_loss(fg_mask, target_gt_idx, keypoints_3d, batch_idx, pred_3dkpts)
@@ -680,7 +680,7 @@ class v8PoseLoss(v8DetectionLoss):
         # Use target_gt_idx_expanded to select 3d angles from batched_3dangles
         selected_3dkeypoints = batched_3dkeypoints.gather(
             1, target_gt_idx_expanded.expand(-1, -1, keypoints_3d.shape[1], keypoints_3d.shape[2]))
-        print("selected_3dkeypoints:",selected_3dkeypoints)
+        print("selected_3dkeypoints.shape:",selected_3dkeypoints.shape)
 
         kpts_3dloss = 0
 

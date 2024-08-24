@@ -43,6 +43,7 @@ class PoseValidator(DetectionValidator):
         batch = super().preprocess(batch)
         batch['keypoints'] = batch['keypoints'].to(self.device).float()
         batch['keypoints_3d'] = batch['keypoints_3d'].to(self.device).float()
+        batch['smpl_shape'] = batch['smpl_shape'].to(self.device).float()
         return batch
 
     def get_desc(self):
@@ -77,6 +78,7 @@ class PoseValidator(DetectionValidator):
         pbatch = super()._prepare_batch(si, batch)
         kpts = batch['keypoints'][batch['batch_idx'] == si]
         kpts_3d = batch['keypoints_3d'][batch['batch_idx'] == si]
+        smpl_shape=batch['smpl_shape'][batch['batch_idx'] == si]
         h, w = pbatch['imgsz']
         kpts = kpts.clone()
         kpts[..., 0] *= w
@@ -84,16 +86,20 @@ class PoseValidator(DetectionValidator):
         kpts = ops.scale_coords(pbatch['imgsz'], kpts, pbatch['ori_shape'], ratio_pad=pbatch['ratio_pad'])
         pbatch['kpts'] = kpts
         pbatch['kpts_3d'] = kpts_3d
+        pbatch['smpl_shape'] = smpl_shape
         return pbatch
 
     def _prepare_pred(self, pred, pbatch):
         predn = super()._prepare_pred(pred, pbatch)
         nk = pbatch['kpts'].shape[1]
         n3dk = pbatch['kpts_3d'].shape[1]
+        nssp = pbatch['smpl_shape'].shape[1]
         pred_kpts = predn[:, 6:6+nk*3].view(len(predn), nk, -1)
-        pred_3dkpts = predn[:, 6+nk*3:].view(len(predn), n3dk, -1)
+        pred_3dkpts = predn[:, 6+nk*3:6+nk*3+n3dk*3].view(len(predn), n3dk, -1)
+        pred_smpl_shape = predn[:, 6+nk*3+n3dk*3:].view(len(predn), nssp, -1)
+        
         ops.scale_coords(pbatch['imgsz'], pred_kpts, pbatch['ori_shape'], ratio_pad=pbatch['ratio_pad'])
-        return predn, pred_kpts, pred_3dkpts
+        return predn, pred_kpts, pred_3dkpts, pred_smpl_shape
 
     def update_metrics(self, preds, batch):
         """Metrics."""
