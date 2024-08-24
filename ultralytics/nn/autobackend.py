@@ -137,7 +137,7 @@ class AutoBackend(nn.Module):
                                          fuse=fuse)
             if hasattr(model, 'kpt_shape'):
                 kpt_shape = model.kpt_shape  # pose-only
-                kpt_3dshape = model.kpt_3dshape
+                kpt_3dshape = model.body_pose_shape
             stride = max(int(model.stride.max()), 32)  # model stride
             names = model.module.names if hasattr(model, 'module') else model.names  # get class names
             model.half() if fp16 else model.float()

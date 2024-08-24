@@ -8,6 +8,7 @@
 # path: /data/coco_human_182_all/  # dataset root dir
 # path: /data/coco_human_182_16imgs/  # dataset root dir
 path: /data/coco_human_192_2imgs/  # dataset root dir
+# path: /data/coco_human_192_all/  # dataset root dir
 train: images/train  # train images (relative to 'path') 4 images
 val: images/val  # val images (relative to 'path') 4 images
 test:  # test images (optional)

@@ -85,8 +85,8 @@ def verify_image(args):
 
 def verify_image_label(args):
     """Verify one image-label pair."""
-    im_file, lb_file, prefix, keypoint, num_cls, nkpt, ndim, n3dkpt, n3ddim, nbshapeparam, nbshapedim, \
-        nrhandkpt,nrhanddim,nlhandkpt,nlhanddim,njawparam,njawdim,nexprparam,nexprdim= args
+    # im_file, lb_file, prefix, keypoint, num_cls, nkpt, ndim, n3dkpt, n3ddim, nbshapeparam, nbshapedim, nrhandkpt,nrhanddim,nlhandkpt,nlhanddim,njawparam,njawdim,nexprparam,nexprdim= args
+    im_file, lb_file, prefix, keypoint, num_cls, nkpt, ndim, n3dkpt, n3ddim, nbshapeparam, nbshapedim= args
     # Number (missing, found, empty, corrupt), message, segments, keypoints
     nm, nf, ne, nc, msg, segments, keypoints = 0, 0, 0, 0, '', [], None
     try:
@@ -116,7 +116,7 @@ def verify_image_label(args):
                 lb = np.array(lb, dtype=np.float32)
             nl = len(lb)
             # print("lb[0]:",lb[0].shape) #lb[0]: (192,) ; lb[1]: (192,) .. 
-            print("nl:",nl) # 3~6
+            # print("nl:",nl) # 3~6
             if nl:
                 # print("keypoint:",keypoint) # all True
                 if keypoint:
@@ -177,7 +177,7 @@ def verify_image_label(args):
     except Exception as e:
         nc = 1
         msg = f'{prefix}WARNING ⚠️ {im_file}: ignoring corrupt image/label: {e}'
-        return [None, None, None, None, None, None, nm, nf, ne, nc, msg]
+        return [None, None, None, None, None, None, None, nm, nf, ne, nc, msg]
 
 
 def polygon2mask(imgsz, polygons, color=1, downsample_ratio=1):
@@ -506,7 +506,8 @@ class HUBDatasetStats:
                 print("utils- ----get_json--pose")
                 n = labels['keypoints'].shape[0]
                 n_3d = labels['keypoints_3d'].shape[0]
-                coordinates = np.concatenate((labels['bboxes'], labels['keypoints'].reshape(n, -1)), labels['keypoints_3d'].reshape(n_3d, -1), 1)
+                n_ss = labels['smpl_shape'].shape[0]
+                coordinates = np.concatenate((labels['bboxes'], labels['keypoints'].reshape(n, -1)), labels['keypoints_3d'].reshape(n_3d, -1),labels['smpl_shape'].reshape(n_ss, -1), 1)
                 print("                n_3d = labels['keypoints_3d'].shape[0]----")
             else:
                 raise ValueError('Undefined dataset task.')

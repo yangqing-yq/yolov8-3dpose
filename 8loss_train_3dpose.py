@@ -34,7 +34,7 @@ if __name__ == '__main__':
     model = load_model(yaml_file, pt_file)
 
     # model.train(data = data_conf, epochs = 100, imgsz = 640, device = [1, 3, 5, 6, 7], batch = 32*5, name = "3dat")
-    model.train(data = data_conf, epochs = 100, imgsz = 640, device = [1], batch = 96, name = "5loss-3dloss*10")
+    model.train(data = data_conf, epochs = 100, imgsz = 640, device = [1], batch = 128, name = "8loss")
 
     model.export()
 

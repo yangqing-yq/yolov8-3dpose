@@ -28,6 +28,7 @@ class BaseModel(nn.Module):
     """The BaseModel class serves as a base class for all the models in the Ultralytics YOLO family."""
 
     def forward(self, x, *args, **kwargs):
+        # print("*args, **kwargs:", *args, **kwargs)
         """
         Forward pass of the model on a single scale. Wrapper for `_forward_once` method.
 
@@ -238,7 +239,7 @@ class DetectionModel(BaseModel):
             LOGGER.info(f"Overriding model.yaml nc={self.yaml['nc']} with nc={nc}")
             self.yaml['nc'] = nc  # override YAML value
         self.model, self.save = parse_model(deepcopy(self.yaml), ch=ch, verbose=verbose)  # model, savelist
-        print("self.model, self.save",self.model, self.save)
+        # print("self.model, self.save",self.model, self.save)
         self.names = {i: f'{i}' for i in range(self.yaml['nc'])}  # default names dict
         self.inplace = self.yaml.get('inplace', True)
 
@@ -327,10 +328,11 @@ class SegmentationModel(DetectionModel):
 class PoseModel(DetectionModel):
     """YOLOv8 pose model."""
 
-    def __init__(self, cfg='yolov8n-pose.yaml', ch=3, nc=None, data_kpt_shape=(None, None), data_body_pose_shape=(None, None), verbose=True):
+    def __init__(self, cfg='yolov8n-pose.yaml', ch=3, nc=None, data_kpt_shape=(None, None), data_body_pose_shape=(None, None),data_smpl_shape_shape=(None, None), verbose=True):
         """Initialize YOLOv8 Pose model."""
         print("data_body_pose_shape:",data_body_pose_shape)
         print("data_kpt_shape:",data_kpt_shape)
+        print("data_smpl_shape_shape:",data_smpl_shape_shape)
         if not isinstance(cfg, dict):
             cfg = yaml_model_load(cfg)  # load model YAML
         if any(data_kpt_shape) and list(data_kpt_shape) != list(cfg['kpt_shape']):
@@ -342,9 +344,18 @@ class PoseModel(DetectionModel):
             LOGGER.info(f"Overriding model.yaml kpt_3dshape={cfg['body_pose_shape']} with kpt_3dshape={data_body_pose_shape}")
             cfg['body_pose_shape'] = data_body_pose_shape
             print("data_kpt_3dshape:",cfg['body_pose_shape'] ,data_body_pose_shape)
+
+
+        if any(data_smpl_shape_shape) and list(data_smpl_shape_shape) != list(cfg['smpl_shape_shape']):
+            LOGGER.info(f"Overriding model.yaml kpt_3dshape={cfg['smpl_shape_shape']} with kpt_3dshape={data_smpl_shape_shape}")
+            cfg['smpl_shape_shape'] = data_smpl_shape_shape
+            print("data_smpl_shape_shape:",cfg['smpl_shape_shape'] ,data_smpl_shape_shape)
+
+        # print("tasks, data_body_pose_shape:",data_body_pose_shape)
+        # print("tasks, data_kpt_shape:",data_kpt_shape)
+        # print("tasks, data_smpl_shape_shape:",data_smpl_shape_shape)
+
         super().__init__(cfg=cfg, ch=ch, nc=nc,verbose=verbose) ##issue!!
-        print("data_body_pose_shape:",data_body_pose_shape)
-        print("data_kpt_shape:",data_kpt_shape)
 
     # def __init__(self, cfg='yolov8n-pose.yaml', ch=3, nc=None, data_kpt_shape=(None, None), data_kpt_3dshape=(None, None), verbose=True):
     #     """Initialize YOLOv8 Pose model."""
@@ -706,7 +717,7 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
     # Args
     max_channels = float('inf')
     nc, act, scales = (d.get(x) for x in ('nc', 'activation', 'scales'))
-    depth, width, kpt_shape, body_pose_shape = (d.get(x, 1.0) for x in ('depth_multiple', 'width_multiple', 'kpt_shape', 'body_pose_shape'))
+    depth, width, kpt_shape, body_pose_shape,smpl_shape_shape = (d.get(x, 1.0) for x in ('depth_multiple', 'width_multiple', 'kpt_shape', 'body_pose_shape','smpl_shape_shape'))
     if scales:
         scale = d.get('scale')
         if not scale:
@@ -723,8 +734,13 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
         LOGGER.info(f"\n{'':>3}{'from':>20}{'n':>3}{'params':>10}  {'module':<45}{'arguments':<30}")
     ch = [ch]
     layers, save, c2 = [], [], ch[-1]  # layers, savelist, ch out
+
+    # print("d['head']:",d['head'])
+
     for i, (f, n, m, args) in enumerate(d['backbone'] + d['head']):  # from, number, module, args
         m = getattr(torch.nn, m[3:]) if 'nn.' in m else globals()[m]  # get module
+
+        # print("i, (f, n, m, args):",i, (f, n, m, args))
         for j, a in enumerate(args):
             if isinstance(a, str):
                 with contextlib.suppress(ValueError):
@@ -764,6 +780,7 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
         else:
             c2 = ch[f]
 
+        # print("m(*args):",m(*args))
         m_ = nn.Sequential(*(m(*args) for _ in range(n))) if n > 1 else m(*args)  # module
         t = str(m)[8:-2].replace('__main__.', '')  # module type
         m.np = sum(x.numel() for x in m_.parameters())  # number params

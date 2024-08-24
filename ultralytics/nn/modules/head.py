@@ -144,20 +144,22 @@ class OBB(Detect):
 class Pose(Detect):
     """YOLOv8 Pose head for keypoints models."""
 
-    def __init__(self, nc=80, kpt_shape=(17, 3), body_pose_shape=(22, 3), ch=()):
+    def __init__(self, nc=80, kpt_shape=(17, 3), body_pose_shape=(22, 3), smpl_shape_shape=(10,1),ch=()):
         """Initialize YOLO network with default parameters and Convolutional Layers."""
         super().__init__(nc, ch)
         # Sifan modify here
 
-        print("1body_pose_shape:",body_pose_shape)
         self.kpt_shape = kpt_shape  # number of keypoints, number of dims (2 for x,y or 3 for x,y,visible)
         self.body_pose_shape = body_pose_shape  # number of keypoints, number of dims (2 for x,y or 3 for x,y,visible)
+        self.smpl_shape_shape = smpl_shape_shape
         print("kpt_shape:",kpt_shape)
         self.nk = kpt_shape[0] * kpt_shape[1]  # number of keypoints total
         print("body_pose_shape:",body_pose_shape)
-        self.n3dk = body_pose_shape[0] * body_pose_shape[1]  # number of keypoints total
-        self.nk_total = self.nk + self.n3dk
+        self.nbpp = body_pose_shape[0] * body_pose_shape[1]  # number of keypoints total
+        self.nssp = smpl_shape_shape[0] * smpl_shape_shape[1] # number of parameters total
+        self.nk_total = self.nk + self.nbpp + self.nssp
         self.detect = Detect.forward
+        print("self.nk,self.nbpp, self.ssp, self.nk_total:",self.nk,self.nbpp,self.nssp,self.nk_total)
 
         c4 = max(ch[0] // 4, self.nk_total)
         self.cv4 = nn.ModuleList(nn.Sequential(Conv(x, c4, 3), Conv(c4, c4, 3), nn.Conv2d(c4, self.nk_total, 1)) for x in ch)
@@ -167,14 +169,19 @@ class Pose(Detect):
         bs = x[0].shape[0]  # batch size
         # kpt = torch.cat([self.cv4[i](x[i]).view(bs, self.nk, -1) for i in range(self.nl)], -1)  # (bs, 17*3, h*w)
         kpt_total = torch.cat([self.cv4[i](x[i]).view(bs, self.nk_total, -1) for i in range(self.nl)], -1)  # (bs, 17*3 + 22*3, h*w)
+        print("nnhead/kpt_total:",kpt_total.shape)
         kpt = kpt_total[:, :self.nk, :]
-        kpt_3d = kpt_total[:, self.nk:, :]
+        print("nnhead/kpt:",kpt.shape)
+        body_pose = kpt_total[:, self.nk:self.nk+self.nbpp, :]
+        print("nnhead/body_pose:",body_pose.shape)
+        smpl_shape = kpt_total[:, self.nk+self.nbpp: ,:]
+        print("nnhead/body_pose:",body_pose.shape)
 
         x = self.detect(self, x)
         if self.training:
-            return x, kpt, kpt_3d
+            return x, kpt, body_pose, smpl_shape
         pred_kpt = self.kpts_decode(bs, kpt)
-        return torch.cat([x, pred_kpt, kpt_3d], 1) if self.export else (torch.cat([x[0], pred_kpt, kpt_3d], 1), (x[1], kpt, kpt_3d))
+        return torch.cat([x, pred_kpt, body_pose, smpl_shape], 1) if self.export else (torch.cat([x[0], pred_kpt, body_pose, smpl_shape], 1), (x[1], kpt, body_pose, smpl_shape))
 
     def kpts_decode(self, bs, kpts):
         """Decodes keypoints."""
@@ -396,7 +403,6 @@ class RTDETRDecoder(nn.Module):
 
         # (bs, num_queries, 256)
         top_k_features = features[batch_ind, topk_ind].view(bs, self.num_queries, -1)
-        # (bs, num_queries, 4)
         top_k_anchors = anchors[:, topk_ind].view(bs, self.num_queries, -1)
 
         # Dynamic anchors + static content
